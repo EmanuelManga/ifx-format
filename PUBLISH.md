@@ -11,7 +11,7 @@ Guía práctica para subir esta extensión a **Visual Studio Marketplace** (VS C
 1. **Publisher ID** en `package.json` → hoy: `emanuelmanga`  
    Tiene que coincidir con el publisher que creés en Azure DevOps / Marketplace.
 2. **`name` + `publisher`** = ID único: `emanuelmanga.ifx-format`
-3. Versión semver en `package.json` (actual: `0.2.8`)
+3. Versión semver en `package.json` (actual: `0.2.9`)
 4. `README.md` / `README.en.md`, `LICENSE`, icono
 5. Build OK: `bun run build` genera `dist/extension.cjs`
 
@@ -175,7 +175,7 @@ Para que `.sql` use Informix solo en repos Informix:
 
 ## 6. Actualizar una versión ya publicada
 
-1. Subí la versión en `package.json` (`0.2.8` → `0.2.9`)
+1. Subí la versión en `package.json` (`0.2.9` → `0.2.10`)
 2. Actualizá el changelog / README si aplica
 3. `bun run publish:marketplace` (y `publish:ovsx` si usás Open VSX)
 

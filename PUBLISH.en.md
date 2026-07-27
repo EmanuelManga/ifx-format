@@ -11,7 +11,7 @@ Practical guide to publish this extension to the **Visual Studio Marketplace** (
 1. **Publisher ID** in `package.json` → currently: `emanuelmanga`  
    Must match the publisher you create in Azure DevOps / Marketplace.
 2. **`name` + `publisher`** = unique ID: `emanuelmanga.ifx-format`
-3. Semver version in `package.json` (current: `0.2.8`)
+3. Semver version in `package.json` (current: `0.2.9`)
 4. `README.md` / `README.en.md`, `LICENSE`, icon
 5. Build OK: `bun run build` produces `dist/extension.cjs`
 
@@ -175,7 +175,7 @@ For Informix-only repos so `.sql` uses Informix:
 
 ## 6. Bump a published version
 
-1. Bump the version in `package.json` (`0.2.8` → `0.2.9`)
+1. Bump the version in `package.json` (`0.2.9` → `0.2.10`)
 2. Update changelog / README if needed
 3. `bun run publish:marketplace` (and `publish:ovsx` if you use Open VSX)
 

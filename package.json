@@ -2,7 +2,7 @@
     "name": "ifx-format",
     "displayName": "IFX Format",
     "description": "Formats Informix SPL procedures without overriding generic SQL formatters (Postgres, etc.)",
-    "version": "0.2.8",
+    "version": "0.2.9",
     "publisher": "emanuelmanga",
     "license": "MIT",
     "icon": "public/assets/icon/informix_icon_big@2x.png",

@@ -4,7 +4,7 @@
 
 Extensión para **Cursor** / VS Code que formatea procedimientos **Informix SPL** (`DEFINE`, `LET`, `IF`/`ELSE`/`END IF`, `FOR`/`FOREACH`, queries, subqueries) y colorea parámetros y variables en el editor.
 
-**ID:** `emanuelmanga.ifx-format` · **Versión:** `0.2.8`
+**ID:** `emanuelmanga.ifx-format` · **Versión:** `0.2.9`
 
 ## ¿Pisa otros `.sql` (Postgres, etc.)?
 

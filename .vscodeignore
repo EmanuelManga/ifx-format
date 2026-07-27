@@ -11,6 +11,10 @@ bun.lock
 bunfig.toml
 tsconfig.json
 PUBLISH.md
+PUBLISH.en.md
+.env
+.env.*
+*_og.png
 *.vsix
 samples/**
 **/*.map

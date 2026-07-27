@@ -4,7 +4,7 @@
 
 **Cursor** / VS Code extension that formats **Informix SPL** procedures (`DEFINE`, `LET`, `IF`/`ELSE`/`END IF`, `FOR`/`FOREACH`, queries, subqueries) and highlights parameters and variables in the editor.
 
-**ID:** `emanuelmanga.ifx-format` · **Version:** `0.2.8`
+**ID:** `emanuelmanga.ifx-format` · **Version:** `0.2.9`
 
 ## Does it conflict with other `.sql` (Postgres, etc.)?
 
