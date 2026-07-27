@@ -1,0 +1,626 @@
+DROP PROCEDURE IF EXISTS sp_ddjj2025_genera_deuda_med;
+CREATE PROCEDURE sp_ddjj2025_genera_deuda_med(ln_cuit CHAR(11),
+  ln_ano SMALLINT,
+  ln_cuenta INTEGER,
+  ln_imponible DECIMAL(18,2))
+  RETURNING INTEGER AS cuenta,
+  SMALLINT AS tipo,
+  SMALLINT AS categoria,
+  DECIMAL(18,2) AS importe;
+
+  DEFINE l_sena SMALLINT;
+  DEFINE lc_cuenta INTEGER;
+  DEFINE l_mes SMALLINT;
+  DEFINE es_ppal CHAR(1);
+  DEFINE ln_comprob DECIMAL(16,0);
+  DEFINE ln_transac INTEGER;
+  DEFINE ln_transac1 INTEGER;
+  DEFINE ln_transac2 INTEGER;
+  DEFINE ln_transac3 INTEGER;
+  DEFINE ln_transac4 INTEGER;
+  DEFINE ln_transac5 INTEGER;
+  DEFINE ln_transac6 INTEGER;
+  DEFINE ln_transac7 INTEGER;
+  DEFINE ln_transac8 INTEGER;
+  DEFINE ln_transac9 INTEGER;
+  DEFINE ln_transac10 INTEGER;
+  DEFINE ln_transac11 INTEGER;
+  DEFINE lx_categoria SMALLINT;
+  DEFINE lx_cuota DECIMAL(16,2);
+  DEFINE cant1 SMALLINT;
+  DEFINE ano SMALLINT;
+  DEFINE mes_final SMALLINT;
+  DEFINE mes SMALLINT;
+  DEFINE l_vto_afap DATE;
+  DEFINE ano_afap SMALLINT;
+  DEFINE mes_afap SMALLINT;
+  DEFINE mes_hasta SMALLINT;
+  DEFINE l_cant SMALLINT;
+  DEFINE i SMALLINT;
+  DEFINE lf_vto DATE;
+  DEFINE lc_categoria CHAR(1);
+  DEFINE lc_cuota DECIMAL(16,2);
+  DEFINE lc_rubro SMALLINT;
+  DEFINE lx_ano SMALLINT;
+  DEFINE lid_ddjj_sh INTEGER;
+  DEFINE lid_simplificado INTEGER;
+  DEFINE banda SMALLINT;
+  DEFINE GLOBAL c_legajo  CHAR(18) DEFAULT "DESCONOCIDO";
+
+  LET banda = 0;
+  LET lc_cuenta = 0;
+  LET lc_categoria = NULL;
+  LET lc_rubro = 0;
+  LET lc_cuota = 0;
+  LET l_mes = 1;
+  LET lid_simplificado = 0;
+  LET lid_ddjj_sh = 0;
+  LET es_ppal = "";
+  LET mes_hasta = MONTH(TODAY) - 1;
+  --LET mes_hasta = 3;
+  LET i = 2;
+  LET mes_final = 0;
+  LET lx_categoria = 0;
+  LET lx_cuota = 0;
+  LET ln_transac = 0;
+  LET ln_transac1 = 0;
+  LET ln_transac2 = 0;
+  LET ln_transac3 = 0;
+  LET ln_transac4 = 0;
+  LET ln_transac5 = 0;
+  LET ln_transac6 = 0;
+  LET ln_transac7 = 0;
+  LET ln_transac8 = 0;
+  LET ln_transac9 = 0;
+  LET ln_transac10 = 0;
+  LET ln_transac11 = 0;
+  LET mes = 0;
+  LET lx_ano = YEAR(TODAY);
+  LET ano = 0;
+
+  --BEGIN WORK;
+  CALL spl_global(666);
+  LET l_vto_afap = NULL;
+  LET ano_afap = NULL;
+  LET mes_afap = NULL;
+  LET l_cant = 0;
+
+  SELECT COUNT(*)
+    INTO l_cant
+    FROM padrones_afap
+    WHERE c_cuenta = ln_cuenta
+      AND estado = "A";
+
+  IF l_cant > 0 THEN
+
+    SELECT MONTH(f_vencimiento),
+      YEAR(f_vencimiento),
+      f_vencimiento
+      INTO mes_afap,
+      ano_afap,
+      l_vto_afap
+      FROM padrones_afap
+      WHERE c_cuenta = ln_cuenta
+        AND estado = "A";
+
+  ELSE
+
+    LET mes_afap = NULL;
+    LET ano_afap = NULL;
+    LET l_vto_afap = NULL;
+
+  END IF
+
+  SELECT YEAR(f_habilitacion)
+    INTO ano
+    FROM cuentas_habilitadas
+    WHERE c_cuenta = ln_cuenta;
+
+  IF ano IS NULL THEN
+
+    LET ano = 0;
+
+  END IF
+
+  IF ano = ln_ano THEN
+
+    SELECT MONTH(f_habilitacion)
+      INTO mes
+      FROM cuentas_habilitadas
+      WHERE c_cuenta = ln_cuenta;
+
+    LET l_mes = mes;
+
+    IF ln_ano = lx_ano THEN
+
+      LET mes_final = MONTH(TODAY);
+
+    ELSE
+
+      LET mes_final = 12;
+
+    END IF
+  END IF
+
+  IF ano < ln_ano THEN
+
+    LET l_mes = 1;
+
+    IF ln_ano = lx_ano THEN
+
+      IF MONTH(TODAY) = 1 THEN
+
+        LET mes_final = 1;
+        LET mes = 1;
+
+      ELSE
+
+        LET mes_final = MONTH(TODAY) - 1;
+        LET mes = 1;
+
+      END IF
+
+    ELSE
+
+      LET mes_final = 12;
+      LET mes = 1;
+
+    END IF
+  END IF
+
+  LET cant1 = 0;
+  -- SELECT COUNT(*)
+  -- INTO cant1
+  -- FROM transacciones
+  -- WHERE c_cuenta = ln_cuenta
+  --   AND c_tasa = 221
+  --   AND n_ano = ln_ano
+  --   AND n_cuota = l_mes
+  --   AND c_actual NOT IN("CR","AD","DP","DR");
+  --IF cant1 > 0 THEN
+  --  RETURN 0,0,0,0;
+  --END IF
+  LET lc_rubro = 0;
+
+  SELECT c_rubro
+    INTO lc_rubro
+    FROM comercios
+    WHERE c_cuenta = ln_cuenta;
+
+  LET lc_cuota = 0;
+  LET lc_categoria = "";
+
+  SELECT categoria,cuota
+    INTO lc_categoria,
+    lc_cuota
+    FROM regimen_simplificado_mediano
+    WHERE n_ano = ln_ano
+      AND ln_imponible >= ib_desde
+      AND ln_imponible <= ib_hasta
+      AND l_mes >= periodo_desde
+      AND l_mes <= periodo_hasta;
+
+  IF lc_rubro IN(553,794) THEN
+
+    LET lx_categoria = 3;
+    LET lx_cuota = 0;
+
+    SELECT cuota
+      INTO lx_cuota
+      FROM regimen_simplificado_mediano
+      WHERE n_ano = ln_ano
+        AND l_mes BETWEEN periodo_desde AND periodo_hasta
+        AND categoria = (
+          SELECT COALESCE(MAX(categoria), lx_categoria)
+            FROM regimen_simplificado_mediano
+            WHERE n_ano = ln_ano
+              AND categoria >= lx_categoria
+              AND ln_imponible BETWEEN ib_desde AND ib_hasta
+              AND l_mes BETWEEN periodo_desde AND periodo_hasta
+          );
+
+    IF lx_cuota > lc_cuota THEN
+
+      LET lc_cuota = lx_cuota;
+      LET lc_categoria = lx_categoria;
+
+    ELSE
+
+      LET lx_cuota = 0;
+      LET lx_categoria = 0;
+
+    END IF
+
+  ELSE
+
+    IF lc_rubro = 674 THEN
+
+      LET lx_categoria = 4;
+      LET lx_cuota = 0;
+
+      SELECT cuota
+        INTO lx_cuota
+        FROM regimen_simplificado_mediano
+        WHERE n_ano = ln_ano
+          AND l_mes BETWEEN periodo_desde AND periodo_hasta
+          AND categoria = (
+            SELECT COALESCE(MAX(categoria), lx_categoria)
+              FROM regimen_simplificado_mediano
+              WHERE n_ano = ln_ano
+                AND categoria >= lx_categoria
+                AND ln_imponible BETWEEN ib_desde AND ib_hasta
+                AND l_mes BETWEEN periodo_desde AND periodo_hasta
+            );
+
+      IF lx_cuota > lc_cuota THEN
+
+        LET lc_cuota = lx_cuota;
+        LET lc_categoria = lx_categoria;
+
+      ELSE
+
+        LET lx_cuota = 0;
+        LET lx_categoria = 0;
+
+      END IF
+
+    ELSE
+
+      IF lc_rubro IN(724,921) THEN
+
+        LET lx_categoria = 5;
+        LET lx_cuota = 0;
+
+        SELECT cuota
+          INTO lx_cuota
+          FROM regimen_simplificado_mediano
+          WHERE n_ano = ln_ano
+            AND l_mes BETWEEN periodo_desde AND periodo_hasta
+            AND categoria = (
+              SELECT COALESCE(MAX(categoria), lx_categoria)
+                FROM regimen_simplificado_mediano
+                WHERE n_ano = ln_ano
+                  AND categoria >= lx_categoria
+                  AND ln_imponible BETWEEN ib_desde AND ib_hasta
+                  AND l_mes BETWEEN periodo_desde AND periodo_hasta
+              );
+
+        IF lx_cuota > lc_cuota THEN
+
+          LET lc_cuota = lx_cuota;
+          LET lc_categoria = lx_categoria;
+
+        ELSE
+
+          LET lx_cuota = 0;
+          LET lx_categoria = 0;
+
+        END IF
+      END IF
+    END IF
+  END IF
+
+  IF lc_cuota IS NULL OR lc_cuota = 0 THEN
+
+    RETURN 0,0,0,0;
+
+  END IF
+
+  FOR i = mes TO mes_final
+    LET cant1 = 0;
+
+    SELECT COUNT(*)
+      INTO cant1
+      FROM transacciones
+      WHERE c_cuenta = ln_cuenta
+        AND c_tasa = 221
+        AND n_ano = ln_ano
+        AND n_cuota = i
+        AND c_actual NOT IN("CR","AD","DP","DR");
+
+    IF cant1 > 0 THEN
+
+      CONTINUE FOR;
+
+    END IF
+
+    LET ln_transac = sp_obt_nro_transac();
+
+    INSERT INTO transacciones VALUES(ln_transac,
+      ln_cuenta,
+      221,
+      ln_ano,
+      i,
+      0,
+      1,
+      "DE",
+      "DE",
+      TODAY,
+      99);
+
+    IF sp_notfound () = 1 THEN
+
+      LET banda = 1;
+
+    END IF
+
+    LET lc_cuota = 0;
+
+    SELECT cuota
+      INTO lc_cuota
+      FROM regimen_simplificado_mediano
+      WHERE n_ano = ln_ano
+        AND categoria = lc_categoria
+        AND i BETWEEN periodo_desde AND periodo_hasta;
+
+    IF ln_ano = ano_afap THEN
+
+      IF i >= mes_afap THEN
+
+        LET lc_cuota = lc_cuota * 2;
+
+      END IF
+
+    ELSE
+
+      IF ln_ano > ano_afap THEN
+
+        LET lc_cuota = lc_cuota * 2;
+
+      END IF
+    END IF
+
+    LET lc_cuota = lc_cuota * -1;
+
+    INSERT INTO cta_cte VALUES(ln_transac,
+      1,
+      NULL,
+      NULL,
+      NULL,
+      lc_cuota,
+      0,
+      0,
+      "DE",
+      NULL,
+      NULL,
+      249);
+
+    IF sp_notfound () = 1 THEN
+
+      LET banda = 1;
+
+    END IF
+
+    LET lc_cuota = lc_cuota * -1;
+  END FOR
+  INSERT INTO nro_comprob_emi_8 VALUES(0);
+
+  LET ln_comprob = 0;
+  LET ln_comprob = dbinfo ("sqlca.sqlerrd1");
+  LET ln_comprob = ln_comprob + 10800000000;
+  LET lf_vto = NULL;
+
+  SELECT f_prim_vto
+    INTO lf_vto
+    FROM vencimientos
+    WHERE n_ano = ln_ano
+      AND c_tasa = 221
+      AND n_cuota = l_mes;
+
+  INSERT INTO regimen_simplificado_cab VALUES(0,
+    ln_ano,
+    ln_cuenta,
+    2,
+    TODAY,
+    NULL,
+    1,
+    l_mes);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  LET lid_simplificado = dbinfo ("sqlca.sqlerrd1");
+
+  INSERT INTO regimen_simplificado_cuentas VALUES(lid_simplificado,
+    2,
+    1,
+    ln_cuenta,
+    ln_ano,
+    l_mes,
+    221,
+    lc_cuota,
+    0,
+    0,
+    1,
+    TODAY,
+    NULL,
+    1);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO regimen_simplificado_det VALUES(lid_simplificado,
+    ln_transac,
+    lc_cuota,
+    1);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO regimen_simplificado_det VALUES(lid_simplificado,
+    ln_transac1,
+    lc_cuota,
+    1);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO regimen_simplificado_tasas VALUES(lid_simplificado,
+    lc_cuota,
+    lc_categoria,
+    lc_cuota,
+    0,
+    0,
+    0);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO regimen_simplificado_padrones VALUES(ln_ano,
+    ln_cuit,
+    ln_cuenta,
+    2,
+    lc_categoria,
+    ln_imponible,
+    0,
+    l_mes);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO tmp_graba_datos_cab VALUES(ln_ano,
+    ln_cuit,
+    ln_cuenta,
+    2,
+    0,
+    ln_imponible,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    TODAY,
+    "",
+    "",
+    "",
+    lc_rubro,
+    0,
+    0,
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    "",
+    CURRENT,
+    l_mes);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO ddjj_sh_cab VALUES(0,
+    ln_cuit,
+    ln_cuenta,
+    "ORIGINAL",
+    CURRENT,
+    TODAY,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    ln_ano,
+    l_mes,
+    lc_rubro,
+    0,
+    1,
+    lid_simplificado);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  LET lid_ddjj_sh = dbinfo("sqlca.sqlerrd1");
+
+  INSERT INTO ddjj_sh_det VALUES(lid_ddjj_sh,
+    lc_rubro,
+    221,
+    0,
+    0,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    lc_cuota,
+    ln_transac);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO inspectores:reajustes_comp VALUES(ln_comprob,
+    1,
+    ln_cuenta,
+    lf_vto,
+    0);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  INSERT INTO inspectores:reajustes VALUES(ln_comprob,
+    221,
+    ln_ano,
+    l_mes,
+    lc_cuota,
+    0);
+
+  IF sp_notfound () = 1 THEN
+
+    LET banda = 1;
+
+  END IF
+
+  IF banda = 1 THEN
+
+    --  ROLLBACK WORK;
+    RETURN 0,0,0,0;
+
+  ELSE
+
+    --  COMMIT WORK;
+    RETURN ln_cuenta,2,lc_categoria,lc_cuota;
+
+  END IF
+
+END PROCEDURE;

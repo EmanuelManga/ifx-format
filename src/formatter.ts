@@ -1,0 +1,527 @@
+/** Options for Informix SPL formatting. */
+export type FormatOptions = {
+  uppercase?: boolean;
+  indentSize?: number;
+  useTabs?: boolean;
+  blankAfterQuery?: boolean;
+  blankAfterIf?: boolean;
+  blankAfterReturning?: boolean;
+  blankBeforeElseEndIf?: boolean;
+  keepEndClosersTogether?: boolean;
+};
+
+const KEYWORDS = [
+  "DROP",
+  "PROCEDURE",
+  "IF",
+  "EXISTS",
+  "CREATE",
+  "RETURNING",
+  "AS",
+  "DEFINE",
+  "GLOBAL",
+  "DEFAULT",
+  "LET",
+  "CALL",
+  "SELECT",
+  "INTO",
+  "FROM",
+  "WHERE",
+  "AND",
+  "OR",
+  "NOT",
+  "IN",
+  "BETWEEN",
+  "IS",
+  "NULL",
+  "THEN",
+  "ELSE",
+  "END",
+  "FOR",
+  "FOREACH",
+  "WHILE",
+  "DO",
+  "TO",
+  "STEP",
+  "CONTINUE",
+  "EXIT",
+  "RETURN",
+  "INSERT",
+  "UPDATE",
+  "DELETE",
+  "VALUES",
+  "SET",
+  "COUNT",
+  "MONTH",
+  "YEAR",
+  "TODAY",
+  "CURRENT",
+  "COALESCE",
+  "MAX",
+  "MIN",
+  "SUM",
+  "AVG",
+  "BEGIN",
+  "WORK",
+  "COMMIT",
+  "ROLLBACK",
+  "WITH",
+  "HOLD",
+] as const;
+
+const KEYWORD_RE = new RegExp(`\\b(${KEYWORDS.join("|")})\\b`, "gi");
+const CLAUSE_RE =
+  /^(INTO|FROM|WHERE|VALUES|SET|JOIN|LEFT|RIGHT|INNER|OUTER|CROSS|GROUP|ORDER|HAVING|ON|WHEN|RETURNING)\b/i;
+const EXTRA_CONTINUATION_RE = /^(AND|OR|,)/i;
+const STRING_RE = /(["'])(?:\\.|(?!\1).)*\1/g;
+
+type StatementKind = "DEFINE" | "LET" | "OTHER";
+
+type OpenerFlags = {
+  ifThen: boolean;
+  ifOnly: boolean;
+  forLoop: boolean;
+  foreach: boolean;
+  whileDo: boolean;
+};
+
+export function formatInformixSpl(
+  text: string,
+  options: FormatOptions = {},
+): string {
+  const uppercase = options.uppercase !== false;
+  const useTabs = options.useTabs === true;
+  const indentSize = options.indentSize ?? 2;
+  const unit = useTabs ? "\t" : " ".repeat(indentSize);
+
+  const rawLines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const indented = applyBlockIndent(rawLines, unit, uppercase);
+  const spaced = applyBlankLineRules(indented, {
+    blankAfterQuery: options.blankAfterQuery !== false,
+    blankAfterIf: options.blankAfterIf !== false,
+    blankAfterReturning: options.blankAfterReturning !== false,
+    blankBeforeElseEndIf: options.blankBeforeElseEndIf !== false,
+    keepEndClosersTogether: options.keepEndClosersTogether !== false,
+  });
+  const cleaned = collapseExtraBlankLines(spaced);
+
+  return cleaned.join("\n").replace(/\s+$/, "") + "\n";
+}
+
+function applyBlockIndent(
+  lines: string[],
+  unit: string,
+  uppercase: boolean,
+): string[] {
+  const out: string[] = [];
+  let nest = 0;
+  /** 0 = outside, 1 = CREATE header, 2 = procedure body */
+  let region = 0;
+  let pendingThen = false;
+  let prevCode = "";
+  const parenStack: number[] = [];
+
+  for (const original of lines) {
+    const trimmed = original.trim();
+
+    if (!trimmed) {
+      out.push("");
+      continue;
+    }
+
+    const line = isCommentOnly(trimmed)
+      ? trimmed
+      : uppercase
+        ? uppercaseKeywords(trimmed)
+        : trimmed;
+
+    if (/^DROP\s+PROCEDURE\b/i.test(line)) {
+      region = 0;
+      nest = 0;
+      pendingThen = false;
+      prevCode = "";
+      parenStack.length = 0;
+      out.push(line);
+      continue;
+    }
+
+    if (/^CREATE\s+PROCEDURE\b/i.test(line)) {
+      region = 1;
+      nest = 0;
+      pendingThen = false;
+      prevCode = line;
+      parenStack.length = 0;
+      out.push(line);
+      continue;
+    }
+
+    if (/^END\s+PROCEDURE\b/i.test(line)) {
+      region = 0;
+      nest = 0;
+      pendingThen = false;
+      prevCode = "";
+      parenStack.length = 0;
+      out.push(line);
+      continue;
+    }
+
+    if (region === 1) {
+      if (isProcedureBodyStart(line)) {
+        region = 2;
+      } else {
+        out.push(unit + line);
+        prevCode = line;
+        if (/RETURNING\b/i.test(line) && /;\s*$/.test(line)) {
+          region = 2;
+        }
+        continue;
+      }
+    }
+
+    if (region !== 2) {
+      out.push(line);
+      prevCode = isCommentOnly(line) ? prevCode : line;
+      continue;
+    }
+
+    const closers = countClosers(line);
+    const elseLine = isElseLine(line);
+    const elseIfLine = isElseIfLine(line);
+
+    let lineNest = nest;
+    if (elseLine || elseIfLine) {
+      lineNest = Math.max(0, nest - 1);
+      parenStack.length = 0;
+    } else if (closers > 0) {
+      lineNest = Math.max(0, nest - closers);
+      parenStack.length = 0;
+    }
+
+    let clauseExtra = 0;
+    if (!isBlockKeywordLine(line) && !isCommentOnly(line)) {
+      if (EXTRA_CONTINUATION_RE.test(line)) {
+        clauseExtra = 2;
+      } else if (CLAUSE_RE.test(line)) {
+        clauseExtra = 1;
+      } else if (prevCode && /,\s*$/.test(prevCode) && parenStack.length === 0) {
+        clauseExtra = 1;
+      }
+    }
+
+    let depth: number;
+    if (/^\)/.test(line) && parenStack.length > 0) {
+      depth = parenStack[parenStack.length - 1]!;
+    } else if (parenStack.length > 0 && !isBlockKeywordLine(line)) {
+      depth = parenStack[parenStack.length - 1]! + clauseExtra;
+    } else {
+      depth = 1 + lineNest + clauseExtra;
+      if (
+        !isBlockKeywordLine(line) &&
+        !isCommentOnly(line) &&
+        clauseExtra === 0 &&
+        prevCode &&
+        /[,(]\s*$/.test(prevCode) &&
+        parenStack.length === 0
+      ) {
+        depth = 1 + lineNest + 1;
+      }
+    }
+
+    out.push(unit.repeat(depth) + line);
+
+    if (!(elseLine || elseIfLine)) {
+      nest = Math.max(0, nest - closers);
+    }
+
+    const openers = countOpeners(line);
+    if (openers.ifThen) {
+      nest += 1;
+      pendingThen = false;
+    } else if (openers.ifOnly) {
+      pendingThen = true;
+    } else if (pendingThen && /\bTHEN\b/i.test(line)) {
+      nest += 1;
+      pendingThen = false;
+    }
+
+    if (openers.forLoop) nest += 1;
+    if (openers.foreach) nest += 1;
+    if (openers.whileDo) nest += 1;
+
+    if (!isCommentOnly(line) && !isBlockKeywordLine(line)) {
+      updateParenStack(parenStack, line, depth);
+    }
+
+    if (!isCommentOnly(line)) {
+      prevCode = line;
+    }
+  }
+
+  return out;
+}
+
+function updateParenStack(stack: number[], line: string, lineDepth: number): void {
+  const plain = stripStrings(line);
+  for (let i = 0; i < plain.length; i++) {
+    const ch = plain[i];
+    if (ch === "(") {
+      stack.push(lineDepth + 1);
+    } else if (ch === ")" && stack.length) {
+      stack.pop();
+    }
+  }
+}
+
+function stripStrings(line: string): string {
+  return line.replace(STRING_RE, '""');
+}
+
+function isProcedureBodyStart(line: string): boolean {
+  if (isCommentOnly(line)) return true;
+  return /^(DEFINE|LET|CALL|SELECT|INSERT|UPDATE|DELETE|RETURN|IF|FOR|FOREACH|WHILE|BEGIN)\b/i.test(
+    line,
+  );
+}
+
+function countOpeners(line: string): OpenerFlags {
+  const result: OpenerFlags = {
+    ifThen: false,
+    ifOnly: false,
+    forLoop: false,
+    foreach: false,
+    whileDo: false,
+  };
+
+  if (/^END\s+(IF|FOR|FOREACH|WHILE|PROCEDURE)\b/i.test(line)) {
+    return result;
+  }
+
+  if (/^FOREACH\b/i.test(line)) {
+    result.foreach = true;
+    return result;
+  }
+
+  if (/^FOR\b/i.test(line)) {
+    result.forLoop = true;
+  }
+
+  if (/^WHILE\b/i.test(line)) {
+    result.whileDo = true;
+  }
+
+  if (/^IF\b/i.test(line)) {
+    const hasThen = /\bTHEN\b/i.test(line);
+    const hasEndIf = /\bEND\s+IF\b/i.test(line);
+    if (hasThen && !hasEndIf) {
+      result.ifThen = true;
+    } else if (!hasThen && !hasEndIf) {
+      result.ifOnly = true;
+    }
+  }
+
+  return result;
+}
+
+function countClosers(line: string): number {
+  let n = 0;
+  if (/^END\s+IF\b/i.test(line)) n += 1;
+  if (/^END\s+FOR\b/i.test(line)) n += 1;
+  if (/^END\s+FOREACH\b/i.test(line)) n += 1;
+  if (/^END\s+WHILE\b/i.test(line)) n += 1;
+  return n;
+}
+
+function isElseLine(line: string): boolean {
+  return /^ELSE\b/i.test(line) && !/^ELSE\s+IF\b/i.test(line);
+}
+
+function isElseIfLine(line: string): boolean {
+  return /^ELSE\s+IF\b/i.test(line) || /^ELIF\b/i.test(line);
+}
+
+function isBlockKeywordLine(line: string): boolean {
+  return /^(IF|ELSE|END|FOR|FOREACH|WHILE|DEFINE|LET|CALL|RETURN|CONTINUE|EXIT|CREATE|DROP|BEGIN|COMMIT|ROLLBACK)\b/i.test(
+    line,
+  );
+}
+
+function isCommentOnly(line: string): boolean {
+  return line.charCodeAt(0) === 45 && line.charCodeAt(1) === 45; // --
+}
+
+function uppercaseKeywords(line: string): string {
+  if (isCommentOnly(line)) return line;
+
+  const strings: string[] = [];
+  const protectedLine = line.replace(STRING_RE, (m) => {
+    strings.push(m);
+    return `__STR${strings.length - 1}__`;
+  });
+
+  const uppered = protectedLine.replace(KEYWORD_RE, (m) => m.toUpperCase());
+  return uppered.replace(/__STR(\d+)__/g, (_, i: string) => strings[Number(i)]!);
+}
+
+function applyBlankLineRules(
+  lines: string[],
+  options: Required<
+    Pick<
+      FormatOptions,
+      | "blankAfterQuery"
+      | "blankAfterIf"
+      | "blankAfterReturning"
+      | "blankBeforeElseEndIf"
+      | "keepEndClosersTogether"
+    >
+  >,
+): string[] {
+  const {
+    blankAfterQuery,
+    blankAfterIf,
+    blankAfterReturning,
+    blankBeforeElseEndIf,
+    keepEndClosersTogether,
+  } = options;
+  const out: string[] = [];
+  let inQuery = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    if (!trimmed) continue;
+
+    if (
+      blankBeforeElseEndIf &&
+      (isElseLine(trimmed) ||
+        isElseIfLine(trimmed) ||
+        /^END\s+IF\b/i.test(trimmed))
+    ) {
+      const prev = lastNonBlankTrimmed(out);
+      const gluedClosers =
+        keepEndClosersTogether &&
+        isBlockCloser(trimmed) &&
+        prev !== null &&
+        isBlockCloser(prev);
+
+      if (!gluedClosers && out.length && out[out.length - 1]!.trim() !== "") {
+        out.push("");
+      }
+    }
+
+    out.push(line);
+
+    if (isCommentOnly(trimmed)) continue;
+
+    if (/^(SELECT|INSERT|UPDATE|DELETE)\b/i.test(trimmed)) {
+      inQuery = true;
+    }
+
+    let wantBlank = false;
+    const next = nextMeaningfulSkippingComments(lines, i + 1);
+
+    const kind = statementKind(trimmed);
+    if (kind === "DEFINE" || kind === "LET") {
+      if (
+        next &&
+        statementKind(next.trimmed) !== kind &&
+        !isBlockCloserOrElse(next.trimmed)
+      ) {
+        wantBlank = true;
+      }
+    }
+
+    if (
+      blankAfterReturning &&
+      next &&
+      /;\s*$/.test(trimmed) &&
+      /^DEFINE\b/i.test(next.trimmed) &&
+      !/^DEFINE\b/i.test(trimmed)
+    ) {
+      wantBlank = true;
+    }
+
+    if (inQuery && /;\s*$/.test(trimmed)) {
+      inQuery = false;
+      if (blankAfterQuery && next && !isBlockCloserOrElse(next.trimmed)) {
+        wantBlank = true;
+      }
+    }
+
+    if (blankAfterIf && next) {
+      const isIfThen =
+        /^IF\b/i.test(trimmed) &&
+        /\bTHEN\b/i.test(trimmed) &&
+        !/\bEND\s+IF\b/i.test(trimmed);
+      const isElse = isElseLine(trimmed) || isElseIfLine(trimmed);
+      const isEndIf = /^END\s+IF\b/i.test(trimmed);
+
+      if (isIfThen || isElse) {
+        wantBlank = true;
+      } else if (isEndIf) {
+        if (keepEndClosersTogether && isBlockCloser(next.trimmed)) {
+          // keep stacked closers glued
+        } else if (!isBlockCloserOrElse(next.trimmed)) {
+          wantBlank = true;
+        }
+      }
+    }
+
+    if (wantBlank) out.push("");
+  }
+
+  return out;
+}
+
+function statementKind(trimmed: string): StatementKind {
+  if (/^DEFINE\b/i.test(trimmed)) return "DEFINE";
+  if (/^LET\b/i.test(trimmed)) return "LET";
+  return "OTHER";
+}
+
+function nextMeaningfulSkippingComments(
+  lines: string[],
+  from: number,
+): { index: number; trimmed: string; line: string } | null {
+  for (let i = from; i < lines.length; i++) {
+    const trimmed = lines[i]!.trim();
+    if (!trimmed || isCommentOnly(trimmed)) continue;
+    return { index: i, trimmed, line: lines[i]! };
+  }
+  return null;
+}
+
+function isBlockCloser(trimmed: string): boolean {
+  return /^END\s+(IF|FOR|FOREACH|WHILE)\b/i.test(trimmed);
+}
+
+function isBlockCloserOrElse(trimmed: string): boolean {
+  return isBlockCloser(trimmed) || /^(ELSE|ELIF)\b/i.test(trimmed);
+}
+
+function lastNonBlankTrimmed(lines: string[]): string | null {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const t = lines[i]!.trim();
+    if (t) return t;
+  }
+  return null;
+}
+
+function collapseExtraBlankLines(lines: string[]): string[] {
+  const out: string[] = [];
+  let blankRun = 0;
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      blankRun += 1;
+      if (blankRun <= 1) out.push("");
+      continue;
+    }
+    blankRun = 0;
+    out.push(line);
+  }
+
+  while (out.length && !out[0]!.trim()) out.shift();
+  while (out.length && !out[out.length - 1]!.trim()) out.pop();
+  return out;
+}

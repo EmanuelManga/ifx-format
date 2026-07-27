@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Informix SPL",
+  "scopeName": "source.informix-spl",
+  "patterns": [
+    { "include": "#informix-comments" },
+    { "include": "#informix-procedure-name" },
+    { "include": "#parameter-name" },
+    { "include": "#informix-define" },
+    { "include": "#informix-let" },
+    { "include": "#informix-into" },
+    { "include": "#informix-keywords" },
+    { "include": "#informix-qualified" },
+    { "include": "source.sql" }
+  ],
+  "repository": {
+    "informix-comments": {
+      "patterns": [
+        {
+          "name": "comment.block.sql",
+          "begin": "\\{",
+          "end": "\\}"
+        }
+      ]
+    },
+    "informix-procedure-name": {
+      "match": "(?i)\\b(CREATE)\\s+(PROCEDURE)\\s+([A-Za-z_][\\w@$#]*)",
+      "captures": {
+        "1": { "name": "keyword.other.create.sql" },
+        "2": { "name": "keyword.other.sql" },
+        "3": { "name": "entity.name.function.sql" }
+      }
+    },
+    "parameter-name": {
+      "comment": "Params after ( or , — works across lines; ignores DEFINE (no lookbehind comma/paren)",
+      "match": "(?i)(?<=[,(])\\s*([A-Za-z_][\\w@$#]*)\\s+(?=(?:CHAR|VARCHAR|LVARCHAR|NCHAR|NVARCHAR|INTEGER|INT|SMALLINT|SERIAL|BIGINT|DECIMAL|NUMERIC|MONEY|FLOAT|SMALLFLOAT|DATE|DATETIME|INTERVAL|BYTE|TEXT|BOOLEAN|BLOB|CLOB)\\b)",
+      "captures": {
+        "1": { "name": "variable.parameter.informix-spl" }
+      }
+    },
+    "informix-define": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(DEFINE)\\s+(GLOBAL)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "keyword.other.sql" },
+            "3": { "name": "variable.other.informix-spl" }
+          }
+        },
+        {
+          "match": "(?i)\\b(DEFINE)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "variable.other.informix-spl" }
+          }
+        }
+      ]
+    },
+    "informix-let": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(LET)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "variable.other.informix-spl" }
+          }
+        }
+      ]
+    },
+    "informix-into": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(INTO)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.DML.sql" },
+            "2": { "name": "variable.other.informix-spl" }
+          }
+        }
+      ]
+    },
+    "informix-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.other.sql",
+          "match": "(?i)\\b(FOREACH|RETURNING|ELIF|PROCEDURE|CALL|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE)\\b"
+        },
+        {
+          "name": "keyword.control.sql",
+          "match": "(?i)\\b(END\\s+(IF|FOR|FOREACH|WHILE|PROCEDURE)|ELSE\\s+IF)\\b"
+        }
+      ]
+    },
+    "informix-qualified": {
+      "patterns": [
+        {
+          "match": "\\b([A-Za-z_][\\w@$#]*)\\.([A-Za-z_][\\w@$#]*)\\b",
+          "captures": {
+            "1": { "name": "constant.other.database-name.sql" },
+            "2": { "name": "constant.other.table-name.sql" }
+          }
+        }
+      ]
+    }
+  }
+}

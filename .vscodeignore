@@ -1,0 +1,17 @@
+.vscode/**
+.vscode-test/**
+src/**
+scripts/**
+node_modules/**
+**/*.ts
+.gitignore
+.git/**
+.bun-*/
+bun.lock
+bunfig.toml
+tsconfig.json
+PUBLISH.md
+*.vsix
+samples/**
+**/*.map
+dist/**/*.map

@@ -1,0 +1,155 @@
+{
+    "name": "ifx-format",
+    "displayName": "IFX Format",
+    "description": "Formats Informix SPL procedures without overriding generic SQL formatters (Postgres, etc.)",
+    "version": "0.2.8",
+    "publisher": "emanuelmanga",
+    "license": "MIT",
+    "icon": "public/assets/icon/informix_icon_big@2x.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/EmanuelManga/ifx-format.git"
+    },
+    "bugs": {
+        "url": "https://github.com/EmanuelManga/ifx-format/issues"
+    },
+    "homepage": "https://github.com/EmanuelManga/ifx-format#readme",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Formatters",
+        "Programming Languages"
+    ],
+    "keywords": [
+        "ifx",
+        "informix",
+        "spl",
+        "sql",
+        "formatter",
+        "stored procedure"
+    ],
+    "activationEvents": [
+        "onLanguage:informix-spl"
+    ],
+    "main": "./dist/extension.cjs",
+    "contributes": {
+        "languages": [
+            {
+                "id": "informix-spl",
+                "aliases": [
+                    "IFX Format",
+                    "Informix SPL",
+                    "Informix SQL",
+                    "IFX"
+                ],
+                "extensions": [
+                    ".ifs",
+                    ".ifx",
+                    ".spl"
+                ],
+                "icon": {
+                    "light": "./public/assets/icon/informix_icon.png",
+                    "dark": "./public/assets/icon/informix_icon.png"
+                },
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "informix-spl",
+                "scopeName": "source.informix-spl",
+                "path": "./syntaxes/informix-spl.tmLanguage.json"
+            }
+        ],
+        "configurationDefaults": {
+            "[informix-spl]": {
+                "editor.defaultFormatter": "emanuelmanga.ifx-format",
+                "editor.formatOnSave": true
+            }
+        },
+        "commands": [
+            {
+                "command": "ifxFormat.format",
+                "title": "IFX Format: Format Document"
+            }
+        ],
+        "configuration": {
+            "title": "IFX Format",
+            "properties": {
+                "ifxFormat.uppercase": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Convierte keywords Informix/SQL a mayúsculas"
+                },
+                "ifxFormat.indentSize": {
+                    "type": "number",
+                    "default": 2,
+                    "minimum": 1,
+                    "maximum": 8,
+                    "description": "Espacios por nivel de anidamiento (IF/FOR/FOREACH)"
+                },
+                "ifxFormat.useTabs": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Usar tabs en lugar de espacios para indentar"
+                },
+                "ifxFormat.blankAfterQuery": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco después de SELECT/INSERT/UPDATE/DELETE"
+                },
+                "ifxFormat.blankAfterIf": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco después de IF...THEN, ELSE y END IF"
+                },
+                "ifxFormat.blankAfterReturning": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco después de la última variable del RETURNING"
+                },
+                "ifxFormat.blankBeforeElseEndIf": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco antes de ELSE y END IF"
+                },
+                "ifxFormat.keepEndClosersTogether": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Sin líneas en blanco entre cierres consecutivos (END IF / END FOR / END FOREACH / END WHILE)"
+                },
+                "ifxFormat.syntax.highlightVariables": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Colorea parámetros y variables DEFINE en todo el archivo"
+                },
+                "ifxFormat.syntax.parameterColor": {
+                    "type": "string",
+                    "default": "#FBBF24",
+                    "description": "Color de parámetros del CREATE PROCEDURE (todas las apariciones)"
+                },
+                "ifxFormat.syntax.localColor": {
+                    "type": "string",
+                    "default": "#2DD4BF",
+                    "description": "Color de variables DEFINE/LET (todas las apariciones). Distinto al azul de keywords."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "build": "bun run scripts/build.ts",
+        "watch": "bun run scripts/build.ts --watch",
+        "format-file": "bun run scripts/format-cli.ts",
+        "package": "bun run build && bunx @vscode/vsce package --no-dependencies",
+        "publish:marketplace": "bun run build && bunx @vscode/vsce publish --no-dependencies",
+        "publish:ovsx": "bun run build && bunx ovsx publish --no-dependencies"
+    },
+    "devDependencies": {
+        "@types/bun": "latest",
+        "@types/vscode": "^1.74.0",
+        "@vscode/vsce": "^3.6.0",
+        "ovsx": "^0.10.5",
+        "typescript": "^5"
+    }
+}
