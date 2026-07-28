@@ -1,22 +1,22 @@
 # IFX Format
 
-[Español](README.md) · [English](README.en.md)
+[Español](README.es.md) · [English](README.md)
 
-Formatea procedimientos **Informix SPL** en Cursor y VS Code, sin pisar formatters de SQL genérico (Postgres, etc.).
+Formats **Informix SPL** procedures in Cursor and VS Code without overriding generic SQL formatters (Postgres, etc.).
 
 **ID:** `emanuelmanga.ifx-format`
 
 ![Format Document](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format.gif)
 
-## Características
+## Features
 
-- Formato de `DEFINE`, `LET`, `IF` / `ELSE` / `END IF`, `FOR` / `FOREACH`, queries y subqueries
-- Keywords a mayúsculas (configurable)
-- Indentación y líneas en blanco ajustables
-- Syntax highlight TextMate para Informix SPL
-- Colorea parámetros del `CREATE PROCEDURE` y variables `DEFINE` en todo el archivo
-- Language ID propio (`informix-spl`): no interfiere con `.sql` de Postgres u otros
-- Icono propio para archivos `.ifs` / `.ifx` / `.spl`
+- Formats `DEFINE`, `LET`, `IF` / `ELSE` / `END IF`, `FOR` / `FOREACH`, queries, and subqueries
+- Uppercase keywords (configurable)
+- Adjustable indentation and blank lines
+- TextMate syntax highlighting for Informix SPL
+- Highlights `CREATE PROCEDURE` parameters and `DEFINE` variables across the file
+- Own language ID (`informix-spl`): does not interfere with Postgres or other `.sql` formatters
+- Custom icon for `.ifs` / `.ifx` / `.spl` files
 
 ## Preview
 
@@ -24,48 +24,48 @@ Formatea procedimientos **Informix SPL** en Cursor y VS Code, sin pisar formatte
 
 ![Format Document](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format.gif)
 
-### Otro ejemplo de formato
+### Another format example
 
 ![Format example](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format_dos.gif)
 
-### Highlight de parámetros y variables
+### Parameter and variable highlighting
 
-Parámetros del procedure y variables `DEFINE` con colores distintos:
+Procedure parameters and `DEFINE` variables with distinct colors:
 
 ![Variable highlight](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/highlight.png)
 
-### Icono de archivo `.spl`
+### `.spl` file icon
 
 ![File icon](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/file-icon.png)
 
-## Archivos soportados
+## Supported files
 
-| Extensión | Language ID | Formatter |
-| --- | --- | --- |
-| `.ifs`, `.ifx`, `.spl` | `informix-spl` | IFX Format |
-| `.sql` | `sql` | Tus formatters habituales |
+| Extension              | Language ID    | Formatter             |
+| ---------------------- | -------------- | --------------------- |
+| `.ifs`, `.ifx`, `.spl` | `informix-spl` | IFX Format            |
+| `.sql`                 | `sql`          | Your usual formatters |
 
-Para proyectos solo Informix, asociá `.sql` en el workspace:
+For Informix-only projects, associate `.sql` in the workspace:
 
 ```json
 {
-  "files.associations": {
-    "*.sql": "informix-spl"
-  }
+    "files.associations": {
+        "*.sql": "informix-spl"
+    }
 }
 ```
 
-## Uso
+## Usage
 
-1. Abrí un `.ifs`, `.ifx` o `.spl`
-2. **Format Document** (`Shift+Alt+F`) o activá format on save
-3. O el comando **IFX Format: Format Document**
+1. Open a `.ifs`, `.ifx`, or `.spl` file
+2. **Format Document** (`Shift+Alt+F`) or enable format on save
+3. Or run **IFX Format: Format Document**
 
-Al instalar, `informix-spl` ya viene con IFX Format como formatter por defecto y format on save.
+On install, `informix-spl` already uses IFX Format as the default formatter with format on save enabled.
 
-## Ejemplo
+## Example
 
-**Antes**
+**Before**
 
 ```sql
 create procedure sp_demo(p_id int)
@@ -80,7 +80,7 @@ return l_total;
 end procedure;
 ```
 
-**Después**
+**After**
 
 ```sql
 CREATE PROCEDURE sp_demo(p_id INT)
@@ -101,41 +101,41 @@ END PROCEDURE;
 
 ## Settings
 
-### Formato
+### Formatting
 
-| Setting | Default | Descripción |
-| --- | --- | --- |
-| `ifxFormat.uppercase` | `true` | Keywords en mayúsculas |
-| `ifxFormat.indentSize` | `2` | Espacios por nivel |
-| `ifxFormat.useTabs` | `false` | Tabs en vez de espacios |
-| `ifxFormat.blankAfterQuery` | `true` | Línea en blanco tras queries |
-| `ifxFormat.blankAfterIf` | `true` | Línea en blanco tras `IF` / `ELSE` / `END IF` |
-| `ifxFormat.blankAfterReturning` | `true` | Línea en blanco tras `RETURNING` |
-| `ifxFormat.blankBeforeElseEndIf` | `true` | Línea en blanco antes de `ELSE` / `END IF` |
-| `ifxFormat.keepEndClosersTogether` | `true` | Cierres consecutivos sin blancos entre sí |
+| Setting                            | Default | Description                               |
+| ---------------------------------- | ------- | ----------------------------------------- |
+| `ifxFormat.uppercase`              | `true`  | Uppercase keywords                        |
+| `ifxFormat.indentSize`             | `2`     | Spaces per indent level                   |
+| `ifxFormat.useTabs`                | `false` | Use tabs instead of spaces                |
+| `ifxFormat.blankAfterQuery`        | `true`  | Blank line after queries                  |
+| `ifxFormat.blankAfterIf`           | `true`  | Blank line after `IF` / `ELSE` / `END IF` |
+| `ifxFormat.blankAfterReturning`    | `true`  | Blank line after `RETURNING`              |
+| `ifxFormat.blankBeforeElseEndIf`   | `true`  | Blank line before `ELSE` / `END IF`       |
+| `ifxFormat.keepEndClosersTogether` | `true`  | No blank lines between stacked closers    |
 
-### Highlight de variables
+### Variable highlighting
 
-| Setting | Default | Descripción |
-| --- | --- | --- |
-| `ifxFormat.syntax.highlightVariables` | `true` | Colorea parámetros y variables |
-| `ifxFormat.syntax.parameterColor` | `#FBBF24` | Color de parámetros |
-| `ifxFormat.syntax.localColor` | `#2DD4BF` | Color de variables locales |
-| `ifxFormat.syntax.highlightControl` | `true` | IF/ELSE/FOR/FOREACH/WHILE mismo color que su END |
-| `ifxFormat.syntax.controlIfColor` | `#C792EA` | Color IF / ELSE / END IF |
-| `ifxFormat.syntax.controlForColor` | `#82AAFF` | Color FOR / END FOR |
-| `ifxFormat.syntax.controlForeachColor` | `#82AAFF` | Color FOREACH / END FOREACH |
-| `ifxFormat.syntax.controlWhileColor` | `#82AAFF` | Color WHILE / END WHILE |
+| Setting                                | Default   | Description                                     |
+| -------------------------------------- | --------- | ----------------------------------------------- |
+| `ifxFormat.syntax.highlightVariables`  | `true`    | Color parameters and variables                  |
+| `ifxFormat.syntax.parameterColor`      | `#FBBF24` | Parameter color                                 |
+| `ifxFormat.syntax.localColor`          | `#2DD4BF` | Local variable color                            |
+| `ifxFormat.syntax.highlightControl`    | `true`    | IF/ELSE/FOR/FOREACH/WHILE match their END color |
+| `ifxFormat.syntax.controlIfColor`      | `#C792EA` | IF / ELSE / END IF color                        |
+| `ifxFormat.syntax.controlForColor`     | `#82AAFF` | FOR / END FOR color                             |
+| `ifxFormat.syntax.controlForeachColor` | `#82AAFF` | FOREACH / END FOREACH color                     |
+| `ifxFormat.syntax.controlWhileColor`   | `#82AAFF` | WHILE / END WHILE color                         |
 
-## Requisitos
+## Requirements
 
-Cursor o VS Code `>= 1.74`
+Cursor or VS Code `>= 1.74`
 
 ## Links
 
-- [Repositorio](https://github.com/EmanuelManga/ifx-format)
+- [Repository](https://github.com/EmanuelManga/ifx-format)
 - [Issues](https://github.com/EmanuelManga/ifx-format/issues)
 
-## Licencia
+## License
 
 MIT
