@@ -17,6 +17,6 @@ PUBLISH.en.md
 *_og.png
 *.vsix
 samples/**
-public/assets/demo/**/*.mp4
+public/assets/demo/**
 **/*.map
 dist/**/*.map

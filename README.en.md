@@ -6,7 +6,7 @@ Formats **Informix SPL** procedures in Cursor and VS Code without overriding gen
 
 **ID:** `emanuelmanga.ifx-format`
 
-![Format Document](public/assets/demo/format.gif)
+![Format Document](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format.gif)
 
 ## Features
 
@@ -20,15 +20,23 @@ Formats **Informix SPL** procedures in Cursor and VS Code without overriding gen
 
 ## Preview
 
+### Format Document
+
+![Format Document](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format.gif)
+
+### Another format example
+
+![Format example](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format_dos.gif)
+
 ### Parameter and variable highlighting
 
 Procedure parameters and `DEFINE` variables with distinct colors:
 
-![Variable highlight](public/assets/demo/highlight.png)
+![Variable highlight](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/highlight.png)
 
 ### `.spl` file icon
 
-![File icon](public/assets/demo/file-icon.png)
+![File icon](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/file-icon.png)
 
 ## Supported files
 

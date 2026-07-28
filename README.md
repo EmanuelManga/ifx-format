@@ -6,7 +6,7 @@ Formatea procedimientos **Informix SPL** en Cursor y VS Code, sin pisar formatte
 
 **ID:** `emanuelmanga.ifx-format`
 
-![Format Document](public/assets/demo/format.gif)
+![Format Document](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format.gif)
 
 ## Características
 
@@ -20,15 +20,23 @@ Formatea procedimientos **Informix SPL** en Cursor y VS Code, sin pisar formatte
 
 ## Preview
 
+### Format Document
+
+![Format Document](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format.gif)
+
+### Otro ejemplo de formato
+
+![Format example](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/format_dos.gif)
+
 ### Highlight de parámetros y variables
 
 Parámetros del procedure y variables `DEFINE` con colores distintos:
 
-![Variable highlight](public/assets/demo/highlight.png)
+![Variable highlight](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/highlight.png)
 
 ### Icono de archivo `.spl`
 
-![File icon](public/assets/demo/file-icon.png)
+![File icon](https://raw.githubusercontent.com/EmanuelManga/ifx-format/main/public/assets/demo/file-icon.png)
 
 ## Archivos soportados
 
