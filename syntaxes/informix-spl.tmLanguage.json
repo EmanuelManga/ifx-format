@@ -24,12 +24,34 @@
       ]
     },
     "informix-procedure-name": {
-      "match": "(?i)\\b(CREATE)\\s+(PROCEDURE)\\s+([A-Za-z_][\\w@$#]*)",
-      "captures": {
-        "1": { "name": "keyword.other.create.sql" },
-        "2": { "name": "keyword.other.sql" },
-        "3": { "name": "entity.name.function.sql" }
-      }
+      "patterns": [
+        {
+          "match": "(?i)\\b(CREATE)\\s+(PROCEDURE)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.create.sql" },
+            "2": { "name": "keyword.other.sql" },
+            "3": { "name": "entity.name.function.sql" }
+          }
+        },
+        {
+          "match": "(?i)\\b(DROP)\\s+(PROCEDURE)\\s+(IF)\\s+(EXISTS)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "keyword.other.sql" },
+            "3": { "name": "keyword.other.sql" },
+            "4": { "name": "keyword.other.sql" },
+            "5": { "name": "entity.name.function.sql" }
+          }
+        },
+        {
+          "match": "(?i)\\b(DROP)\\s+(PROCEDURE)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "keyword.other.sql" },
+            "3": { "name": "entity.name.function.sql" }
+          }
+        }
+      ]
     },
     "parameter-name": {
       "comment": "Params after ( or , — works across lines; ignores DEFINE (no lookbehind comma/paren)",

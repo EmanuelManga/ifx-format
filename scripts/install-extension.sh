@@ -3,22 +3,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-bun run build
+bun run package
 
 VERSION="$(bun -e 'console.log(require("./package.json").version)')"
-DEST="${HOME}/.cursor/extensions/emanuelmanga.ifx-format-${VERSION}"
+VSIX="$ROOT/ifx-format-${VERSION}.vsix"
 
-mkdir -p "$DEST"
-cp -a "$ROOT/package.json" "$DEST/"
-cp -a "$ROOT/LICENSE" "$DEST/" 2>/dev/null || true
-cp -a "$ROOT/README.md" "$DEST/" 2>/dev/null || true
-cp -a "$ROOT/language-configuration.json" "$DEST/"
-cp -a "$ROOT/dist" "$DEST/"
-cp -a "$ROOT/syntaxes" "$DEST/"
-mkdir -p "$DEST/public/assets/icon"
-cp -a "$ROOT/public/assets/icon/." "$DEST/public/assets/icon/"
+if ! command -v cursor >/dev/null 2>&1; then
+  echo "No se encontró el CLI 'cursor'."
+  echo "Instalá a mano: Extensions → Install from VSIX… → $VSIX"
+  exit 1
+fi
 
-echo "Installed/updated IFX Format (emanuelmanga.ifx-format) -> $DEST"
+# Quitar ID viejo si quedó colgado
+cursor --uninstall-extension emanuelmanga.informix-spl-formatter >/dev/null 2>&1 || true
+
+cursor --install-extension "$VSIX" --force
+
+echo ""
+echo "Instalada IFX Format (emanuelmanga.ifx-format@${VERSION})"
 echo "Reload Cursor: Ctrl+Shift+P → Developer: Reload Window"
 echo ""
 echo "Tip: para .sql Informix sin pisar Postgres, en settings:"

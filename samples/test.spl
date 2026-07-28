@@ -1,626 +1,287 @@
-DROP PROCEDURE IF EXISTS sp_ddjj2025_genera_deuda_med;
-CREATE PROCEDURE sp_ddjj2025_genera_deuda_med(ln_cuit CHAR(11),
-  ln_ano SMALLINT,
-  ln_cuenta INTEGER,
-  ln_imponible DECIMAL(18,2))
-  RETURNING INTEGER AS cuenta,
-  SMALLINT AS tipo,
-  SMALLINT AS categoria,
-  DECIMAL(18,2) AS importe;
+DROP PROCEDURE IF EXISTS sp_demo_inventory_sync;
+CREATE PROCEDURE sp_demo_inventory_sync(
+  p_warehouse_id INTEGER,
+  p_sku CHAR(32),
+  p_force_resync SMALLINT,
+  p_cutoff_date DATE
+  )
+  RETURNING
+  INTEGER AS warehouse_id,
+  CHAR(32) AS sku,
+  INTEGER AS qty_on_hand,
+  DECIMAL(18, 2) AS unit_cost,
+  CHAR(1) AS status_flag;
 
-  DEFINE l_sena SMALLINT;
-  DEFINE lc_cuenta INTEGER;
-  DEFINE l_mes SMALLINT;
-  DEFINE es_ppal CHAR(1);
-  DEFINE ln_comprob DECIMAL(16,0);
-  DEFINE ln_transac INTEGER;
-  DEFINE ln_transac1 INTEGER;
-  DEFINE ln_transac2 INTEGER;
-  DEFINE ln_transac3 INTEGER;
-  DEFINE ln_transac4 INTEGER;
-  DEFINE ln_transac5 INTEGER;
-  DEFINE ln_transac6 INTEGER;
-  DEFINE ln_transac7 INTEGER;
-  DEFINE ln_transac8 INTEGER;
-  DEFINE ln_transac9 INTEGER;
-  DEFINE ln_transac10 INTEGER;
-  DEFINE ln_transac11 INTEGER;
-  DEFINE lx_categoria SMALLINT;
-  DEFINE lx_cuota DECIMAL(16,2);
-  DEFINE cant1 SMALLINT;
-  DEFINE ano SMALLINT;
-  DEFINE mes_final SMALLINT;
-  DEFINE mes SMALLINT;
-  DEFINE l_vto_afap DATE;
-  DEFINE ano_afap SMALLINT;
-  DEFINE mes_afap SMALLINT;
-  DEFINE mes_hasta SMALLINT;
-  DEFINE l_cant SMALLINT;
-  DEFINE i SMALLINT;
-  DEFINE lf_vto DATE;
-  DEFINE lc_categoria CHAR(1);
-  DEFINE lc_cuota DECIMAL(16,2);
-  DEFINE lc_rubro SMALLINT;
-  DEFINE lx_ano SMALLINT;
-  DEFINE lid_ddjj_sh INTEGER;
-  DEFINE lid_simplificado INTEGER;
-  DEFINE banda SMALLINT;
-  DEFINE GLOBAL c_legajo  CHAR(18) DEFAULT "DESCONOCIDO";
+  DEFINE l_qty INTEGER;
+  DEFINE l_reserved INTEGER;
+  DEFINE l_available INTEGER;
+  DEFINE l_unit_cost DECIMAL(18, 2);
+  DEFINE l_avg_cost DECIMAL(18, 2);
+  DEFINE l_status CHAR(1);
+  DEFINE l_supplier_id INTEGER;
+  DEFINE l_lead_days SMALLINT;
+  DEFINE l_batch_no INTEGER;
+  DEFINE l_line INTEGER;
+  DEFINE l_ok SMALLINT;
+  DEFINE l_msg CHAR(80);
+  DEFINE l_min_qty INTEGER;
+  DEFINE l_max_qty INTEGER;
 
-  LET banda = 0;
-  LET lc_cuenta = 0;
-  LET lc_categoria = NULL;
-  LET lc_rubro = 0;
-  LET lc_cuota = 0;
-  LET l_mes = 1;
-  LET lid_simplificado = 0;
-  LET lid_ddjj_sh = 0;
-  LET es_ppal = "";
-  LET mes_hasta = MONTH(TODAY) - 1;
-  --LET mes_hasta = 3;
-  LET i = 2;
-  LET mes_final = 0;
-  LET lx_categoria = 0;
-  LET lx_cuota = 0;
-  LET ln_transac = 0;
-  LET ln_transac1 = 0;
-  LET ln_transac2 = 0;
-  LET ln_transac3 = 0;
-  LET ln_transac4 = 0;
-  LET ln_transac5 = 0;
-  LET ln_transac6 = 0;
-  LET ln_transac7 = 0;
-  LET ln_transac8 = 0;
-  LET ln_transac9 = 0;
-  LET ln_transac10 = 0;
-  LET ln_transac11 = 0;
-  LET mes = 0;
-  LET lx_ano = YEAR(TODAY);
-  LET ano = 0;
+  LET l_qty = 0;
+  LET l_reserved = 0;
+  LET l_available = 0;
+  LET l_unit_cost = 0;
+  LET l_avg_cost = 0;
+  LET l_status = 'P';
+  LET l_ok = 0;
+  LET l_msg = 'PENDING';
+  LET l_batch_no = 0;
+  LET l_line = 0;
 
-  --BEGIN WORK;
-  CALL spl_global(666);
-  LET l_vto_afap = NULL;
-  LET ano_afap = NULL;
-  LET mes_afap = NULL;
-  LET l_cant = 0;
+  -- Params + nested IF
+  IF p_warehouse_id IS NULL OR p_warehouse_id <= 0 THEN
 
-  SELECT COUNT(*)
-    INTO l_cant
-    FROM padrones_afap
-    WHERE c_cuenta = ln_cuenta
-      AND estado = "A";
+    LET l_status = 'E';
+    LET l_msg = 'INVALID WAREHOUSE';
 
-  IF l_cant > 0 THEN
-
-    SELECT MONTH(f_vencimiento),
-      YEAR(f_vencimiento),
-      f_vencimiento
-      INTO mes_afap,
-      ano_afap,
-      l_vto_afap
-      FROM padrones_afap
-      WHERE c_cuenta = ln_cuenta
-        AND estado = "A";
+    RETURN p_warehouse_id, p_sku, 0, 0, l_status;
 
   ELSE
 
-    LET mes_afap = NULL;
-    LET ano_afap = NULL;
-    LET l_vto_afap = NULL;
+    IF p_sku IS NULL OR LENGTH(TRIM(p_sku)) = 0 THEN
 
-  END IF
+      LET l_status = 'E';
+      LET l_msg = 'INVALID SKU';
 
-  SELECT YEAR(f_habilitacion)
-    INTO ano
-    FROM cuentas_habilitadas
-    WHERE c_cuenta = ln_cuenta;
+      RETURN p_warehouse_id, p_sku, 0, 0, l_status;
 
-  IF ano IS NULL THEN
+    END IF;
+  END IF;
 
-    LET ano = 0;
+  -- Query with subquery in SELECT / WHERE
+  SELECT
+  NVL(i.qty_on_hand, 0),
+    NVL(i.qty_reserved, 0),
+    NVL(i.unit_cost, 0),
+    NVL(i.min_qty, 0),
+    NVL(i.max_qty, 0),
+    i.supplier_id,
+    (
+      SELECT NVL(AVG(c.unit_cost), 0)
+        FROM stock_cost_hist c
+        WHERE c.sku = i.sku
+          AND c.warehouse_id = i.warehouse_id
+          AND c.cost_date >= p_cutoff_date
+      )
+    INTO
+  l_qty,
+    l_reserved,
+    l_unit_cost,
+    l_min_qty,
+    l_max_qty,
+    l_supplier_id,
+    l_avg_cost
+    FROM inventory i
+    WHERE i.warehouse_id = p_warehouse_id
+      AND i.sku = p_sku
+      AND i.sku IN (
+        SELECT s.sku
+          FROM sku_master s
+          WHERE s.active_flag = 'Y'
+            AND s.sku_type IN (
+              SELECT t.sku_type
+                FROM sku_type t
+                WHERE t.allow_sync = 'Y'
+              )
+        );
 
-  END IF
+  LET l_available = l_qty - l_reserved;
 
-  IF ano = ln_ano THEN
+  IF l_available < 0 THEN
 
-    SELECT MONTH(f_habilitacion)
-      INTO mes
-      FROM cuentas_habilitadas
-      WHERE c_cuenta = ln_cuenta;
+    LET l_available = 0;
 
-    LET l_mes = mes;
+  END IF;
 
-    IF ln_ano = lx_ano THEN
+  -- FOR with nested IF / SELECT
+  FOR l_line = 1 TO 3 STEP 1
+    IF l_line = 1 THEN
 
-      LET mes_final = MONTH(TODAY);
-
-    ELSE
-
-      LET mes_final = 12;
-
-    END IF
-  END IF
-
-  IF ano < ln_ano THEN
-
-    LET l_mes = 1;
-
-    IF ln_ano = lx_ano THEN
-
-      IF MONTH(TODAY) = 1 THEN
-
-        LET mes_final = 1;
-        LET mes = 1;
-
-      ELSE
-
-        LET mes_final = MONTH(TODAY) - 1;
-        LET mes = 1;
-
-      END IF
-
-    ELSE
-
-      LET mes_final = 12;
-      LET mes = 1;
-
-    END IF
-  END IF
-
-  LET cant1 = 0;
-  -- SELECT COUNT(*)
-  -- INTO cant1
-  -- FROM transacciones
-  -- WHERE c_cuenta = ln_cuenta
-  --   AND c_tasa = 221
-  --   AND n_ano = ln_ano
-  --   AND n_cuota = l_mes
-  --   AND c_actual NOT IN("CR","AD","DP","DR");
-  --IF cant1 > 0 THEN
-  --  RETURN 0,0,0,0;
-  --END IF
-  LET lc_rubro = 0;
-
-  SELECT c_rubro
-    INTO lc_rubro
-    FROM comercios
-    WHERE c_cuenta = ln_cuenta;
-
-  LET lc_cuota = 0;
-  LET lc_categoria = "";
-
-  SELECT categoria,cuota
-    INTO lc_categoria,
-    lc_cuota
-    FROM regimen_simplificado_mediano
-    WHERE n_ano = ln_ano
-      AND ln_imponible >= ib_desde
-      AND ln_imponible <= ib_hasta
-      AND l_mes >= periodo_desde
-      AND l_mes <= periodo_hasta;
-
-  IF lc_rubro IN(553,794) THEN
-
-    LET lx_categoria = 3;
-    LET lx_cuota = 0;
-
-    SELECT cuota
-      INTO lx_cuota
-      FROM regimen_simplificado_mediano
-      WHERE n_ano = ln_ano
-        AND l_mes BETWEEN periodo_desde AND periodo_hasta
-        AND categoria = (
-          SELECT COALESCE(MAX(categoria), lx_categoria)
-            FROM regimen_simplificado_mediano
-            WHERE n_ano = ln_ano
-              AND categoria >= lx_categoria
-              AND ln_imponible BETWEEN ib_desde AND ib_hasta
-              AND l_mes BETWEEN periodo_desde AND periodo_hasta
-          );
-
-    IF lx_cuota > lc_cuota THEN
-
-      LET lc_cuota = lx_cuota;
-      LET lc_categoria = lx_categoria;
-
-    ELSE
-
-      LET lx_cuota = 0;
-      LET lx_categoria = 0;
-
-    END IF
-
-  ELSE
-
-    IF lc_rubro = 674 THEN
-
-      LET lx_categoria = 4;
-      LET lx_cuota = 0;
-
-      SELECT cuota
-        INTO lx_cuota
-        FROM regimen_simplificado_mediano
-        WHERE n_ano = ln_ano
-          AND l_mes BETWEEN periodo_desde AND periodo_hasta
-          AND categoria = (
-            SELECT COALESCE(MAX(categoria), lx_categoria)
-              FROM regimen_simplificado_mediano
-              WHERE n_ano = ln_ano
-                AND categoria >= lx_categoria
-                AND ln_imponible BETWEEN ib_desde AND ib_hasta
-                AND l_mes BETWEEN periodo_desde AND periodo_hasta
+      SELECT COUNT(*)
+        INTO l_batch_no
+        FROM sync_batch b
+        WHERE b.warehouse_id = p_warehouse_id
+          AND b.created_on >= (
+            SELECT MAX(x.created_on)
+              FROM sync_batch x
+              WHERE x.warehouse_id = p_warehouse_id
+                AND x.status_flag = 'C'
             );
 
-      IF lx_cuota > lc_cuota THEN
+    ELIF l_line = 2 THEN
 
-        LET lc_cuota = lx_cuota;
-        LET lc_categoria = lx_categoria;
+      IF p_force_resync = 1 THEN
+
+        LET l_ok = 1;
+        LET l_msg = 'FORCE RESYNC';
 
       ELSE
 
-        LET lx_cuota = 0;
-        LET lx_categoria = 0;
+        IF l_available < l_min_qty THEN
 
-      END IF
-
-    ELSE
-
-      IF lc_rubro IN(724,921) THEN
-
-        LET lx_categoria = 5;
-        LET lx_cuota = 0;
-
-        SELECT cuota
-          INTO lx_cuota
-          FROM regimen_simplificado_mediano
-          WHERE n_ano = ln_ano
-            AND l_mes BETWEEN periodo_desde AND periodo_hasta
-            AND categoria = (
-              SELECT COALESCE(MAX(categoria), lx_categoria)
-                FROM regimen_simplificado_mediano
-                WHERE n_ano = ln_ano
-                  AND categoria >= lx_categoria
-                  AND ln_imponible BETWEEN ib_desde AND ib_hasta
-                  AND l_mes BETWEEN periodo_desde AND periodo_hasta
-              );
-
-        IF lx_cuota > lc_cuota THEN
-
-          LET lc_cuota = lx_cuota;
-          LET lc_categoria = lx_categoria;
+          LET l_ok = 1;
+          LET l_msg = 'BELOW MIN';
 
         ELSE
 
-          LET lx_cuota = 0;
-          LET lx_categoria = 0;
+          IF l_available > l_max_qty THEN
 
-        END IF
-      END IF
-    END IF
-  END IF
+            LET l_ok = 1;
+            LET l_msg = 'ABOVE MAX';
 
-  IF lc_cuota IS NULL OR lc_cuota = 0 THEN
+          ELSE
 
-    RETURN 0,0,0,0;
+            LET l_ok = 0;
+            LET l_msg = 'IN RANGE';
 
-  END IF
-
-  FOR i = mes TO mes_final
-    LET cant1 = 0;
-
-    SELECT COUNT(*)
-      INTO cant1
-      FROM transacciones
-      WHERE c_cuenta = ln_cuenta
-        AND c_tasa = 221
-        AND n_ano = ln_ano
-        AND n_cuota = i
-        AND c_actual NOT IN("CR","AD","DP","DR");
-
-    IF cant1 > 0 THEN
-
-      CONTINUE FOR;
-
-    END IF
-
-    LET ln_transac = sp_obt_nro_transac();
-
-    INSERT INTO transacciones VALUES(ln_transac,
-      ln_cuenta,
-      221,
-      ln_ano,
-      i,
-      0,
-      1,
-      "DE",
-      "DE",
-      TODAY,
-      99);
-
-    IF sp_notfound () = 1 THEN
-
-      LET banda = 1;
-
-    END IF
-
-    LET lc_cuota = 0;
-
-    SELECT cuota
-      INTO lc_cuota
-      FROM regimen_simplificado_mediano
-      WHERE n_ano = ln_ano
-        AND categoria = lc_categoria
-        AND i BETWEEN periodo_desde AND periodo_hasta;
-
-    IF ln_ano = ano_afap THEN
-
-      IF i >= mes_afap THEN
-
-        LET lc_cuota = lc_cuota * 2;
-
-      END IF
+          END IF;
+        END IF;
+      END IF;
 
     ELSE
 
-      IF ln_ano > ano_afap THEN
+      UPDATE inventory
+        SET last_check = TODAY,
+        notes = l_msg
+        WHERE warehouse_id = p_warehouse_id
+          AND sku = p_sku
+          AND sku NOT IN (
+            SELECT h.sku
+              FROM inventory_hold h
+              WHERE h.hold_flag = 'Y'
+                AND h.warehouse_id = p_warehouse_id
+            );
 
-        LET lc_cuota = lc_cuota * 2;
+    END IF;
+  END FOR;
+  -- FOREACH over cursor with nested FOR + IF + subquery DML
+  FOREACH
+    SELECT o.order_id, o.order_qty, o.supplier_id
+      INTO l_batch_no, l_qty, l_supplier_id
+      FROM purchase_order o
+      WHERE o.sku = p_sku
+        AND o.warehouse_id = p_warehouse_id
+        AND o.status_flag = 'O'
+        AND o.order_id IN (
+          SELECT d.order_id
+            FROM purchase_order_det d
+            WHERE d.sku = p_sku
+              AND d.qty_pending > 0
+          )
+        ORDER BY o.order_date
+    LET l_lead_days = 0;
 
-      END IF
-    END IF
+    SELECT NVL(s.lead_days, 7)
+      INTO l_lead_days
+      FROM supplier s
+      WHERE s.supplier_id = l_supplier_id
+        AND s.supplier_id = (
+          SELECT MIN(s2.supplier_id)
+            FROM supplier s2
+            WHERE s2.active_flag = 'Y'
+              AND s2.region_code = (
+                SELECT w.region_code
+                  FROM warehouse w
+                  WHERE w.warehouse_id = p_warehouse_id
+                )
+          );
 
-    LET lc_cuota = lc_cuota * -1;
+    FOR l_line = 1 TO l_lead_days STEP 1
+      IF MOD(l_line, 2) = 0 THEN
 
-    INSERT INTO cta_cte VALUES(ln_transac,
-      1,
-      NULL,
-      NULL,
-      NULL,
-      lc_cuota,
-      0,
-      0,
-      "DE",
-      NULL,
-      NULL,
-      249);
+        IF l_qty > l_available THEN
 
-    IF sp_notfound () = 1 THEN
+          INSERT INTO sync_audit (
+            warehouse_id,
+            sku,
+            batch_no,
+            line_no,
+            audit_msg,
+            created_on
+            )
+            VALUES (
+              p_warehouse_id,
+              p_sku,
+              l_batch_no,
+              l_line,
+              'SHORTAGE',
+              CURRENT
+              );
 
-      LET banda = 1;
+        ELSE
 
-    END IF
+          INSERT INTO sync_audit (
+            warehouse_id,
+            sku,
+            batch_no,
+            line_no,
+            audit_msg,
+            created_on
+            )
+          SELECT
+          p_warehouse_id,
+            p_sku,
+            l_batch_no,
+            l_line,
+            'OK',
+            CURRENT
+            FROM dual
+            WHERE NOT EXISTS (
+              SELECT 1
+                FROM sync_audit a
+                WHERE a.warehouse_id = p_warehouse_id
+                  AND a.sku = p_sku
+                  AND a.batch_no = l_batch_no
+                  AND a.line_no = l_line
+              );
 
-    LET lc_cuota = lc_cuota * -1;
-  END FOR
-  INSERT INTO nro_comprob_emi_8 VALUES(0);
+        END IF;
+      END IF;
+    END FOR;
+    IF l_ok = 1 THEN
 
-  LET ln_comprob = 0;
-  LET ln_comprob = dbinfo ("sqlca.sqlerrd1");
-  LET ln_comprob = ln_comprob + 10800000000;
-  LET lf_vto = NULL;
+      UPDATE purchase_order
+        SET status_flag = 'S',
+        synced_on = CURRENT
+        WHERE order_id = l_batch_no
+          AND order_id NOT IN (
+            SELECT e.order_id
+              FROM purchase_order_err e
+              WHERE e.fatal_flag = 'Y'
+            );
 
-  SELECT f_prim_vto
-    INTO lf_vto
-    FROM vencimientos
-    WHERE n_ano = ln_ano
-      AND c_tasa = 221
-      AND n_cuota = l_mes;
+    END IF;
+  END FOREACH;
+  -- Final nested IF chain
+  IF l_status = 'P' THEN
 
-  INSERT INTO regimen_simplificado_cab VALUES(0,
-    ln_ano,
-    ln_cuenta,
-    2,
-    TODAY,
-    NULL,
-    1,
-    l_mes);
+    IF l_ok = 1 THEN
 
-  IF sp_notfound () = 1 THEN
+      LET l_status = 'S';
 
-    LET banda = 1;
+    ELSE
 
-  END IF
+      IF l_available = 0 THEN
 
-  LET lid_simplificado = dbinfo ("sqlca.sqlerrd1");
+        LET l_status = 'Z';
 
-  INSERT INTO regimen_simplificado_cuentas VALUES(lid_simplificado,
-    2,
-    1,
-    ln_cuenta,
-    ln_ano,
-    l_mes,
-    221,
-    lc_cuota,
-    0,
-    0,
-    1,
-    TODAY,
-    NULL,
-    1);
+      ELSE
 
-  IF sp_notfound () = 1 THEN
+        LET l_status = 'O';
 
-    LET banda = 1;
+      END IF;
+    END IF;
+  END IF;
 
-  END IF
-
-  INSERT INTO regimen_simplificado_det VALUES(lid_simplificado,
-    ln_transac,
-    lc_cuota,
-    1);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  INSERT INTO regimen_simplificado_det VALUES(lid_simplificado,
-    ln_transac1,
-    lc_cuota,
-    1);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  INSERT INTO regimen_simplificado_tasas VALUES(lid_simplificado,
-    lc_cuota,
-    lc_categoria,
-    lc_cuota,
-    0,
-    0,
-    0);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  INSERT INTO regimen_simplificado_padrones VALUES(ln_ano,
-    ln_cuit,
-    ln_cuenta,
-    2,
-    lc_categoria,
-    ln_imponible,
-    0,
-    l_mes);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  INSERT INTO tmp_graba_datos_cab VALUES(ln_ano,
-    ln_cuit,
-    ln_cuenta,
-    2,
-    0,
-    ln_imponible,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    TODAY,
-    "",
-    "",
-    "",
-    lc_rubro,
-    0,
-    0,
-    "",
-    "",
-    "",
-    "",
-    0,
-    "",
-    "",
-    CURRENT,
-    l_mes);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  INSERT INTO ddjj_sh_cab VALUES(0,
-    ln_cuit,
-    ln_cuenta,
-    "ORIGINAL",
-    CURRENT,
-    TODAY,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    ln_ano,
-    l_mes,
-    lc_rubro,
-    0,
-    1,
-    lid_simplificado);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  LET lid_ddjj_sh = dbinfo("sqlca.sqlerrd1");
-
-  INSERT INTO ddjj_sh_det VALUES(lid_ddjj_sh,
-    lc_rubro,
-    221,
-    0,
-    0,
-    2,
-    0,
-    0,
-    0,
-    0,
-    0,
-    lc_cuota,
-    ln_transac);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  INSERT INTO inspectores:reajustes_comp VALUES(ln_comprob,
-    1,
-    ln_cuenta,
-    lf_vto,
-    0);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  INSERT INTO inspectores:reajustes VALUES(ln_comprob,
-    221,
-    ln_ano,
-    l_mes,
-    lc_cuota,
-    0);
-
-  IF sp_notfound () = 1 THEN
-
-    LET banda = 1;
-
-  END IF
-
-  IF banda = 1 THEN
-
-    --  ROLLBACK WORK;
-    RETURN 0,0,0,0;
-
-  ELSE
-
-    --  COMMIT WORK;
-    RETURN ln_cuenta,2,lc_categoria,lc_cuota;
-
-  END IF
-
+  RETURN p_warehouse_id, p_sku, l_available, l_avg_cost, l_status;
 END PROCEDURE;

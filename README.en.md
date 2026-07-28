@@ -2,20 +2,42 @@
 
 [Español](README.md) · [English](README.en.md)
 
-**Cursor** / VS Code extension that formats **Informix SPL** procedures (`DEFINE`, `LET`, `IF`/`ELSE`/`END IF`, `FOR`/`FOREACH`, queries, subqueries) and highlights parameters and variables in the editor.
+Formats **Informix SPL** procedures in Cursor and VS Code without overriding generic SQL formatters (Postgres, etc.).
 
-**ID:** `emanuelmanga.ifx-format` · **Version:** `0.2.9`
+**ID:** `emanuelmanga.ifx-format`
 
-## Does it conflict with other `.sql` (Postgres, etc.)?
+![Format Document](public/assets/demo/format.gif)
 
-No, by design. This extension uses its **own language ID**: `informix-spl`.
+## Features
 
-| File extension | Language ID | Who formats |
+- Formats `DEFINE`, `LET`, `IF` / `ELSE` / `END IF`, `FOR` / `FOREACH`, queries, and subqueries
+- Uppercase keywords (configurable)
+- Adjustable indentation and blank lines
+- TextMate syntax highlighting for Informix SPL
+- Highlights `CREATE PROCEDURE` parameters and `DEFINE` variables across the file
+- Own language ID (`informix-spl`): does not interfere with Postgres or other `.sql` formatters
+- Custom icon for `.ifs` / `.ifx` / `.spl` files
+
+## Preview
+
+### Parameter and variable highlighting
+
+Procedure parameters and `DEFINE` variables with distinct colors:
+
+![Variable highlight](public/assets/demo/highlight.png)
+
+### `.spl` file icon
+
+![File icon](public/assets/demo/file-icon.png)
+
+## Supported files
+
+| Extension | Language ID | Formatter |
 | --- | --- | --- |
-| `.ifs`, `.ifx`, `.spl` | `informix-spl` | IFX Format (automatic) |
-| `.sql` | `sql` (VS Code default) | Your Postgres / generic SQL formatters |
+| `.ifs`, `.ifx`, `.spl` | `informix-spl` | IFX Format |
+| `.sql` | `sql` | Your usual formatters |
 
-For **Informix-only** projects, associate `.sql` with the Informix dialect in workspace settings:
+For Informix-only projects, associate `.sql` in the workspace:
 
 ```json
 {
@@ -25,106 +47,81 @@ For **Informix-only** projects, associate `.sql` with the Informix dialect in wo
 }
 ```
 
-That way it won't clash with formatters registered on `sql`.
-
-## Bun: faster / lighter?
-
-| Topic | Reality |
-| --- | --- |
-| Extension runtime | Still the **Extension Host Node** (Electron). Bun does **not** run inside VS Code/Cursor. |
-| Bun here | Toolchain: TypeScript → minified CJS bundle (`dist/extension.cjs`), fast CLI, build/publish scripts. |
-| Format speed | Dominated by the algorithm (lines + regex), not the runtime. The minified bundle helps a bit with **startup** and `.vsix` size. |
-| Native binary | Not applicable for editor extensions. |
-
-Summary: Bun is for **developing and packaging** better; the in-editor formatter is plain JS with no runtime deps.
-
-## Requirements
-
-- Cursor or VS Code `>= 1.74`
-- [Bun](https://bun.com/) for build / CLI / packaging
-
-## Development
-
-```bash
-bun install
-bun run build          # → dist/extension.cjs (minified)
-bun run watch          # rebuild when editing src/
-```
-
-Debug: `F5` → Extension Development Host.
-
-## Local install
-
-```bash
-chmod +x scripts/install-extension.sh
-./scripts/install-extension.sh
-# Ctrl+Shift+P → Developer: Reload Window
-```
-
-Or package a `.vsix`:
-
-```bash
-bun run package
-# then: Install from VSIX...
-```
-
 ## Usage
 
-1. Open a `.ifs` / `.ifx` / `.spl` file (or `.sql` associated to `informix-spl`)
-2. **Format Document** (`Shift+Alt+F`) or format on save
-3. Command: `IFX Format: Format Document` (also forces the language ID if needed)
+1. Open a `.ifs`, `.ifx`, or `.spl` file
+2. **Format Document** (`Shift+Alt+F`) or enable format on save
+3. Or run **IFX Format: Format Document**
 
-### Format settings
+On install, `informix-spl` already uses IFX Format as the default formatter with format on save enabled.
+
+## Example
+
+**Before**
+
+```sql
+create procedure sp_demo(p_id int)
+returning int;
+define l_total int;
+if p_id > 0 then
+let l_total = p_id * 2;
+else
+let l_total = 0;
+end if;
+return l_total;
+end procedure;
+```
+
+**After**
+
+```sql
+CREATE PROCEDURE sp_demo(p_id INT)
+RETURNING INT;
+
+  DEFINE l_total INT;
+
+  IF p_id > 0 THEN
+    LET l_total = p_id * 2;
+  ELSE
+    LET l_total = 0;
+  END IF;
+
+  RETURN l_total;
+
+END PROCEDURE;
+```
+
+## Settings
+
+### Formatting
 
 | Setting | Default | Description |
 | --- | --- | --- |
 | `ifxFormat.uppercase` | `true` | Uppercase keywords |
-| `ifxFormat.indentSize` | `2` | Spaces per level |
-| `ifxFormat.useTabs` | `false` | Tabs instead of spaces |
+| `ifxFormat.indentSize` | `2` | Spaces per indent level |
+| `ifxFormat.useTabs` | `false` | Use tabs instead of spaces |
 | `ifxFormat.blankAfterQuery` | `true` | Blank line after queries |
-| `ifxFormat.blankAfterIf` | `true` | Blank line after `IF`/`ELSE`/`END IF` |
+| `ifxFormat.blankAfterIf` | `true` | Blank line after `IF` / `ELSE` / `END IF` |
 | `ifxFormat.blankAfterReturning` | `true` | Blank line after `RETURNING` |
-| `ifxFormat.blankBeforeElseEndIf` | `true` | Blank line before `ELSE`/`END IF` |
-| `ifxFormat.keepEndClosersTogether` | `true` | Keep stacked closers together |
+| `ifxFormat.blankBeforeElseEndIf` | `true` | Blank line before `ELSE` / `END IF` |
+| `ifxFormat.keepEndClosersTogether` | `true` | No blank lines between stacked closers |
 
-### Syntax highlight settings
-
-Colors `CREATE PROCEDURE` parameters and `DEFINE` variables on every occurrence (on top of the TextMate grammar).
+### Variable highlighting
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `ifxFormat.syntax.highlightVariables` | `true` | Enable parameter/variable highlight |
+| `ifxFormat.syntax.highlightVariables` | `true` | Color parameters and variables |
 | `ifxFormat.syntax.parameterColor` | `#FBBF24` | Parameter color |
 | `ifxFormat.syntax.localColor` | `#2DD4BF` | Local variable color |
 
-## CLI
+## Requirements
 
-```bash
-bun run format-file -- input.ifs output.ifs
-# in-place:
-bun run format-file -- my_proc.spl
-```
+Cursor or VS Code `>= 1.74`
 
-## Publish to the Marketplace
+## Links
 
-See [PUBLISH.md](PUBLISH.md) (Spanish) or [PUBLISH.en.md](PUBLISH.en.md) (English).
-
-## Layout
-
-```text
-src/extension.ts              # activation + formatter + highlighter
-src/formatter.ts              # Informix SPL engine
-src/highlight.ts              # parameter/variable decorations
-src/highlight-parse.ts        # DEFINE / parameter name parsing
-scripts/build.ts              # bun build → dist/extension.cjs
-scripts/format-cli.ts
-scripts/install-extension.sh
-syntaxes/                     # TextMate grammar
-public/assets/icon/           # extension + language icons
-language-configuration.json
-dist/extension.cjs            # build output (do not edit by hand)
-samples/test.spl              # sample
-```
+- [Repository](https://github.com/EmanuelManga/ifx-format)
+- [Issues](https://github.com/EmanuelManga/ifx-format/issues)
 
 ## License
 
