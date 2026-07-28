@@ -16,6 +16,18 @@ const KEYWORDS = [
   "IF",
   "EXISTS",
   "CREATE",
+  "TABLE",
+  "ALTER",
+  "INDEX",
+  "UNIQUE",
+  "CONSTRAINT",
+  "FOREIGN",
+  "PRIMARY",
+  "KEY",
+  "REFERENCES",
+  "CHECK",
+  "ADD",
+  "COLUMN",
   "RETURNING",
   "AS",
   "DEFINE",
@@ -54,9 +66,33 @@ const KEYWORDS = [
   "COUNT",
   "MONTH",
   "YEAR",
+  "DAY",
+  "HOUR",
+  "MINUTE",
+  "SECOND",
+  "FRACTION",
+  "DATETIME",
+  "INTERVAL",
+  "INTEGER",
+  "SMALLINT",
+  "BIGINT",
+  "SERIAL",
+  "SERIAL8",
+  "INT",
+  "DECIMAL",
+  "NUMERIC",
+  "MONEY",
+  "FLOAT",
+  "CHAR",
+  "VARCHAR",
+  "LVARCHAR",
+  "NCHAR",
+  "NVARCHAR",
+  "DATE",
   "TODAY",
   "CURRENT",
   "COALESCE",
+  "NVL",
   "MAX",
   "MIN",
   "SUM",
@@ -71,9 +107,11 @@ const KEYWORDS = [
 
 const KEYWORD_RE = new RegExp(`\\b(${KEYWORDS.join("|")})\\b`, "gi");
 const CLAUSE_RE =
-  /^(INTO|FROM|WHERE|VALUES|SET|JOIN|LEFT|RIGHT|INNER|OUTER|CROSS|GROUP|ORDER|HAVING|ON|WHEN|RETURNING)\b/i;
+  /^(INTO|FROM|WHERE|VALUES|SET|JOIN|LEFT|RIGHT|INNER|OUTER|CROSS|GROUP|ORDER|HAVING|ON|WHEN|RETURNING|ADD|CONSTRAINT|FOREIGN|REFERENCES|PRIMARY)\b/i;
 const EXTRA_CONTINUATION_RE = /^(AND|OR|,)/i;
 const STRING_RE = /(["'])(?:\\.|(?!\1).)*\1/g;
+const TOP_LEVEL_STARTER_RE =
+  /^(CREATE|DROP|ALTER|SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|TRUNCATE|LOCK)\b/i;
 
 type StatementKind = "DEFINE" | "LET" | "OTHER";
 
@@ -132,8 +170,8 @@ function applyBlockIndent(
     const line = isCommentOnly(trimmed)
       ? trimmed
       : uppercase
-        ? uppercaseKeywords(trimmed)
-        : trimmed;
+        ? uppercaseKeywords(normalizeWhitespace(trimmed))
+        : normalizeWhitespace(trimmed);
 
     if (/^DROP\s+PROCEDURE\b/i.test(line)) {
       region = 0;
@@ -179,8 +217,52 @@ function applyBlockIndent(
     }
 
     if (region !== 2) {
-      out.push(line);
-      prevCode = isCommentOnly(line) ? prevCode : line;
+      // Top-level DDL / SQL (CREATE TABLE, ALTER, INDEX, bare queries, …)
+      if (isCommentOnly(line)) {
+        out.push(line);
+        continue;
+      }
+
+      const starter = TOP_LEVEL_STARTER_RE.test(line);
+      if (starter) {
+        parenStack.length = 0;
+      }
+
+      let clauseExtra = 0;
+      if (!starter) {
+        if (EXTRA_CONTINUATION_RE.test(line)) {
+          clauseExtra = 2;
+        } else if (CLAUSE_RE.test(line)) {
+          clauseExtra = 1;
+        } else if (prevCode && /,\s*$/.test(prevCode) && parenStack.length === 0) {
+          clauseExtra = 1;
+        } else if (
+          prevCode &&
+          !/;\s*$/.test(prevCode) &&
+          parenStack.length === 0
+        ) {
+          clauseExtra = 1;
+        } else if (
+          prevCode &&
+          /[,(]\s*$/.test(prevCode) &&
+          parenStack.length === 0
+        ) {
+          clauseExtra = 1;
+        }
+      }
+
+      let depth: number;
+      if (/^\)/.test(line) && parenStack.length > 0) {
+        depth = parenStack[parenStack.length - 1]!;
+      } else if (parenStack.length > 0) {
+        depth = parenStack[parenStack.length - 1]! + clauseExtra;
+      } else {
+        depth = starter ? 0 : clauseExtra;
+      }
+
+      out.push(unit.repeat(depth) + line);
+      updateParenStack(parenStack, line, depth);
+      prevCode = line;
       continue;
     }
 
@@ -347,6 +429,43 @@ function isBlockKeywordLine(line: string): boolean {
 
 function isCommentOnly(line: string): boolean {
   return line.charCodeAt(0) === 45 && line.charCodeAt(1) === 45; // --
+}
+
+/** Collapse runs of whitespace outside strings; keep trailing `--` comments. */
+function normalizeWhitespace(line: string): string {
+  if (isCommentOnly(line)) return line;
+
+  let inSingle = false;
+  let inDouble = false;
+  let commentAt = -1;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]!;
+    const prev = i > 0 ? line[i - 1]! : "";
+
+    if (!inDouble && ch === "'" && prev !== "\\") inSingle = !inSingle;
+    else if (!inSingle && ch === '"' && prev !== "\\") inDouble = !inDouble;
+    else if (!inSingle && !inDouble && ch === "-" && line[i + 1] === "-") {
+      commentAt = i;
+      break;
+    }
+  }
+
+  const code = (commentAt >= 0 ? line.slice(0, commentAt) : line).trimEnd();
+  const comment = commentAt >= 0 ? line.slice(commentAt).trimEnd() : "";
+
+  const strings: string[] = [];
+  const protectedCode = code.replace(STRING_RE, (m) => {
+    strings.push(m);
+    return `__STR${strings.length - 1}__`;
+  });
+  const collapsed = protectedCode.replace(/\s+/g, " ").trim();
+  const restored = collapsed.replace(
+    /__STR(\d+)__/g,
+    (_, i: string) => strings[Number(i)]!,
+  );
+
+  return comment ? `${restored} ${comment}` : restored;
 }
 
 function uppercaseKeywords(line: string): string {

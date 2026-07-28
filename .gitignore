@@ -34,6 +34,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
-.vscode
+
+# Any dot-directory (.vscode, .cache, …) — not dot-files (.env, .gitignore)
+.*/
+
 PUBLISH.md
 PUBLISH.en.md

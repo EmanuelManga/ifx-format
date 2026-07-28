@@ -121,6 +121,11 @@ END PROCEDURE;
 | `ifxFormat.syntax.highlightVariables` | `true` | Colorea parámetros y variables |
 | `ifxFormat.syntax.parameterColor` | `#FBBF24` | Color de parámetros |
 | `ifxFormat.syntax.localColor` | `#2DD4BF` | Color de variables locales |
+| `ifxFormat.syntax.highlightControl` | `true` | IF/ELSE/FOR/FOREACH/WHILE mismo color que su END |
+| `ifxFormat.syntax.controlIfColor` | `#C792EA` | Color IF / ELSE / END IF |
+| `ifxFormat.syntax.controlForColor` | `#82AAFF` | Color FOR / END FOR |
+| `ifxFormat.syntax.controlForeachColor` | `#82AAFF` | Color FOREACH / END FOREACH |
+| `ifxFormat.syntax.controlWhileColor` | `#82AAFF` | Color WHILE / END WHILE |
 
 ## Requisitos
 

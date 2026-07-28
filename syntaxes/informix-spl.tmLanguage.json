@@ -104,12 +104,12 @@
     "informix-keywords": {
       "patterns": [
         {
-          "name": "keyword.other.sql",
-          "match": "(?i)\\b(FOREACH|RETURNING|ELIF|PROCEDURE|CALL|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE)\\b"
+          "name": "keyword.control.informix-spl",
+          "match": "(?i)\\b(END\\s+(FOREACH|WHILE|PROCEDURE|FOR|IF)|ELSE\\s+IF|ELIF|FOREACH|WHILE|ELSE|THEN|FOR|IF|DO)\\b"
         },
         {
-          "name": "keyword.control.sql",
-          "match": "(?i)\\b(END\\s+(IF|FOR|FOREACH|WHILE|PROCEDURE)|ELSE\\s+IF)\\b"
+          "name": "keyword.other.sql",
+          "match": "(?i)\\b(RETURNING|PROCEDURE|CALL|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE)\\b"
         }
       ]
     },

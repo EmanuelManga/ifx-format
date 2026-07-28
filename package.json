@@ -2,7 +2,7 @@
     "name": "ifx-format",
     "displayName": "IFX Format",
     "description": "Formats Informix SPL procedures without overriding generic SQL formatters (Postgres, etc.)",
-    "version": "0.2.11",
+    "version": "0.2.12",
     "publisher": "emanuelmanga",
     "license": "MIT",
     "icon": "public/assets/icon/informix_icon_big@2x.png",
@@ -65,7 +65,10 @@
         "configurationDefaults": {
             "[informix-spl]": {
                 "editor.defaultFormatter": "emanuelmanga.ifx-format",
-                "editor.formatOnSave": true
+                "editor.formatOnSave": true,
+                "editor.tabSize": 2,
+                "editor.insertSpaces": true,
+                "editor.detectIndentation": false
             }
         },
         "commands": [
@@ -133,6 +136,31 @@
                     "type": "string",
                     "default": "#2DD4BF",
                     "description": "Color de variables DEFINE/LET (todas las apariciones). Distinto al azul de keywords."
+                },
+                "ifxFormat.syntax.highlightControl": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Colorea IF/ELSE/FOR/FOREACH/WHILE con el mismo color que su END correspondiente"
+                },
+                "ifxFormat.syntax.controlIfColor": {
+                    "type": "string",
+                    "default": "#C792EA",
+                    "description": "Color de IF / ELSE / ELSE IF / THEN / END IF"
+                },
+                "ifxFormat.syntax.controlForColor": {
+                    "type": "string",
+                    "default": "#82AAFF",
+                    "description": "Color de FOR / END FOR"
+                },
+                "ifxFormat.syntax.controlForeachColor": {
+                    "type": "string",
+                    "default": "#82AAFF",
+                    "description": "Color de FOREACH / END FOREACH"
+                },
+                "ifxFormat.syntax.controlWhileColor": {
+                    "type": "string",
+                    "default": "#82AAFF",
+                    "description": "Color de WHILE / DO / END WHILE"
                 }
             }
         }

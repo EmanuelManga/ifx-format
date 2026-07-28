@@ -102,6 +102,51 @@ function findMatchingParen(text: string, openIndex: number): number {
 
 export type Span = { start: number; end: number };
 
+export type ControlFamily = "if" | "for" | "foreach" | "while";
+
+const CONTROL_RE =
+  /\b(?:END\s+FOREACH|END\s+WHILE|END\s+FOR|END\s+IF|ELSE\s+IF|FOREACH|WHILE|ELIF|ELSE|THEN|FOR|IF|DO)\b/gi;
+
+export function findControlKeywordOffsets(
+  text: string,
+): { family: ControlFamily; start: number; end: number }[] {
+  const spans = collectCodeSpans(text);
+  const out: { family: ControlFamily; start: number; end: number }[] = [];
+
+  for (const span of spans) {
+    const chunk = text.slice(span.start, span.end);
+    CONTROL_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = CONTROL_RE.exec(chunk))) {
+      const raw = m[0]!;
+      const family = controlFamily(raw);
+      if (!family) continue;
+      const from = span.start + m.index;
+      out.push({ family, start: from, end: from + raw.length });
+    }
+  }
+
+  return out;
+}
+
+function controlFamily(raw: string): ControlFamily | null {
+  const t = raw.replace(/\s+/g, " ").toUpperCase();
+  if (
+    t === "IF" ||
+    t === "ELSE" ||
+    t === "ELSE IF" ||
+    t === "ELIF" ||
+    t === "THEN" ||
+    t === "END IF"
+  ) {
+    return "if";
+  }
+  if (t === "FOREACH" || t === "END FOREACH") return "foreach";
+  if (t === "FOR" || t === "END FOR") return "for";
+  if (t === "WHILE" || t === "DO" || t === "END WHILE") return "while";
+  return null;
+}
+
 export function collectCodeSpans(text: string): Span[] {
   const spans: Span[] = [];
   let start = 0;

@@ -1,0 +1,22 @@
+CREATE TABLE sessiones (
+  id_adhesion INTEGER NOT NULL,
+  c_tipo_login SMALLINT NOT NULL, -- 0: OPENID, 1: EMPRESA
+  d_nombre CHAR(255),
+  d_apellido CHAR(255),
+  d_razon_social CHAR(80),
+  c_token_hash CHAR(64) NOT NULL,
+  f_alta DATETIME YEAR TO SECOND NOT NULL,
+  f_expiracion DATETIME YEAR TO SECOND NOT NULL,
+  c_usada SMALLINT DEFAULT 0,
+  f_uso DATETIME YEAR TO SECOND,
+  d_telefono VARCHAR(20) NULL
+  );
+ALTER TABLE sessiones
+  ADD CONSTRAINT (FOREIGN KEY (id_adhesion)
+      REFERENCES adhesion_boleta_digital (id_adhesion) CONSTRAINT fk_sessiones_adhesion);
+-- Hash/token único
+CREATE UNIQUE INDEX idx_sessiones_token
+  ON sessiones (c_token_hash);
+-- Resolución por adhesión
+CREATE INDEX idx_sessiones_adhesion_estado
+  ON sessiones (id_adhesion, c_usada, f_expiracion);
