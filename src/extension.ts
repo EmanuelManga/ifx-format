@@ -15,6 +15,9 @@ function readOptions(): FormatOptions {
     blankAfterReturning: config.get("blankAfterReturning", true),
     blankBeforeElseEndIf: config.get("blankBeforeElseEndIf", true),
     keepEndClosersTogether: config.get("keepEndClosersTogether", true),
+    spaceBeforeCreateTableParen: config.get("spaceBeforeCreateTableParen", true),
+    blankAroundDropTable: config.get("blankAroundDropTable", true),
+    blankAfterCreateTable: config.get("blankAfterCreateTable", true),
   };
 }
 

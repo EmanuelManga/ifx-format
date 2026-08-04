@@ -20,6 +20,9 @@ const formatted = formatInformixSpl(src, {
   blankAfterReturning: true,
   blankBeforeElseEndIf: true,
   keepEndClosersTogether: true,
+  spaceBeforeCreateTableParen: true,
+  blankAroundDropTable: true,
+  blankAfterCreateTable: true,
 });
 writeFileSync(resolve(output!), formatted);
 console.log(`Formatted ${input} -> ${output}`);

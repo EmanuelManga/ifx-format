@@ -109,10 +109,13 @@ END PROCEDURE;
 | `ifxFormat.indentSize`             | `2`     | Espacios por nivel                            |
 | `ifxFormat.useTabs`                | `false` | Tabs en vez de espacios                       |
 | `ifxFormat.blankAfterQuery`        | `true`  | Línea en blanco tras queries                  |
-| `ifxFormat.blankAfterIf`           | `true`  | Línea en blanco tras `IF` / `ELSE` / `END IF` |
+| `ifxFormat.blankAfterIf`           | `true`  | Línea en blanco tras `IF` / `ELSE` / `END IF` / `END FOR` / `END FOREACH` / `END WHILE` |
 | `ifxFormat.blankAfterReturning`    | `true`  | Línea en blanco tras `RETURNING`              |
 | `ifxFormat.blankBeforeElseEndIf`   | `true`  | Línea en blanco antes de `ELSE` / `END IF`    |
 | `ifxFormat.keepEndClosersTogether` | `true`  | Cierres consecutivos sin blancos entre sí     |
+| `ifxFormat.spaceBeforeCreateTableParen` | `true` | Espacio antes de `(` en `CREATE [TEMP] TABLE nombre (` |
+| `ifxFormat.blankAroundDropTable`   | `true`  | Agrupa `DROP TABLE` consecutivos; blanco arriba/abajo |
+| `ifxFormat.blankAfterCreateTable`  | `true`  | Línea en blanco tras `CREATE [TEMP] TABLE ...;` |
 
 ### Highlight de variables
 

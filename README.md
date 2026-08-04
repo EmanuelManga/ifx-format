@@ -109,10 +109,13 @@ END PROCEDURE;
 | `ifxFormat.indentSize`             | `2`     | Spaces per indent level                   |
 | `ifxFormat.useTabs`                | `false` | Use tabs instead of spaces                |
 | `ifxFormat.blankAfterQuery`        | `true`  | Blank line after queries                  |
-| `ifxFormat.blankAfterIf`           | `true`  | Blank line after `IF` / `ELSE` / `END IF` |
+| `ifxFormat.blankAfterIf`           | `true`  | Blank line after `IF` / `ELSE` / `END IF` / `END FOR` / `END FOREACH` / `END WHILE` |
 | `ifxFormat.blankAfterReturning`    | `true`  | Blank line after `RETURNING`              |
 | `ifxFormat.blankBeforeElseEndIf`   | `true`  | Blank line before `ELSE` / `END IF`       |
 | `ifxFormat.keepEndClosersTogether` | `true`  | No blank lines between stacked closers    |
+| `ifxFormat.spaceBeforeCreateTableParen` | `true` | Space before `(` in `CREATE [TEMP] TABLE name (` |
+| `ifxFormat.blankAroundDropTable`   | `true`  | Group consecutive `DROP TABLE`; blank line above/below |
+| `ifxFormat.blankAfterCreateTable`  | `true`  | Blank line after `CREATE [TEMP] TABLE ...;` |
 
 ### Variable highlighting
 

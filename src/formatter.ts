@@ -8,6 +8,12 @@ export type FormatOptions = {
   blankAfterReturning?: boolean;
   blankBeforeElseEndIf?: boolean;
   keepEndClosersTogether?: boolean;
+  /** Space before `(` in CREATE [TEMP] TABLE name ( */
+  spaceBeforeCreateTableParen?: boolean;
+  /** Group consecutive DROP TABLE; blank line above/below the group */
+  blankAroundDropTable?: boolean;
+  /** Blank line after CREATE [TEMP] TABLE ...; */
+  blankAfterCreateTable?: boolean;
 };
 
 const KEYWORDS = [
@@ -118,7 +124,7 @@ const STRING_RE = /(["'])(?:\\.|(?!\1).)*\1/g;
 const TOP_LEVEL_STARTER_RE =
   /^(CREATE|DROP|ALTER|SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|TRUNCATE|LOCK)\b/i;
 
-type StatementKind = "DEFINE" | "LET" | "OTHER";
+type StatementKind = "DEFINE" | "LET" | "DROP_TABLE" | "OTHER";
 
 type OpenerFlags = {
   ifThen: boolean;
@@ -136,15 +142,24 @@ export function formatInformixSpl(
   const useTabs = options.useTabs === true;
   const indentSize = options.indentSize ?? 2;
   const unit = useTabs ? "\t" : " ".repeat(indentSize);
+  const spaceBeforeCreateTableParen =
+    options.spaceBeforeCreateTableParen !== false;
 
   const rawLines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-  const indented = applyBlockIndent(rawLines, unit, uppercase);
+  const indented = applyBlockIndent(
+    rawLines,
+    unit,
+    uppercase,
+    spaceBeforeCreateTableParen,
+  );
   const spaced = applyBlankLineRules(indented, {
     blankAfterQuery: options.blankAfterQuery !== false,
     blankAfterIf: options.blankAfterIf !== false,
     blankAfterReturning: options.blankAfterReturning !== false,
     blankBeforeElseEndIf: options.blankBeforeElseEndIf !== false,
     keepEndClosersTogether: options.keepEndClosersTogether !== false,
+    blankAroundDropTable: options.blankAroundDropTable !== false,
+    blankAfterCreateTable: options.blankAfterCreateTable !== false,
   });
   const cleaned = collapseExtraBlankLines(spaced);
 
@@ -155,6 +170,7 @@ function applyBlockIndent(
   lines: string[],
   unit: string,
   uppercase: boolean,
+  spaceBeforeCreateTableParen: boolean,
 ): string[] {
   const out: string[] = [];
   let nest = 0;
@@ -201,9 +217,13 @@ function applyBlockIndent(
 
     const line = isCommentOnly(trimmed)
       ? trimmed
-      : uppercase
-        ? uppercaseKeywords(normalizeWhitespace(trimmed))
-        : normalizeWhitespace(trimmed);
+      : (() => {
+          let s = normalizeWhitespace(trimmed);
+          if (spaceBeforeCreateTableParen) {
+            s = ensureSpaceBeforeCreateTableParen(s);
+          }
+          return uppercase ? uppercaseKeywords(s) : s;
+        })();
 
     if (/^DROP\s+PROCEDURE\b/i.test(line)) {
       region = 0;
@@ -537,6 +557,14 @@ function normalizeWhitespace(line: string): string {
   return comment ? `${restored} ${comment}` : restored;
 }
 
+/** `CREATE [TEMP|TEMPORARY|SCRATCH] TABLE name(` → `... name (` */
+function ensureSpaceBeforeCreateTableParen(line: string): string {
+  return line.replace(
+    /^(CREATE\s+(?:(?:TEMP(?:ORARY)?|SCRATCH)\s+)?TABLE\s+[A-Za-z_][\w@$#]*)\s*\(/i,
+    "$1 (",
+  );
+}
+
 function uppercaseKeywords(line: string): string {
   if (isCommentOnly(line)) return line;
 
@@ -560,6 +588,8 @@ function applyBlankLineRules(
       | "blankAfterReturning"
       | "blankBeforeElseEndIf"
       | "keepEndClosersTogether"
+      | "blankAroundDropTable"
+      | "blankAfterCreateTable"
     >
   >,
 ): string[] {
@@ -569,9 +599,12 @@ function applyBlankLineRules(
     blankAfterReturning,
     blankBeforeElseEndIf,
     keepEndClosersTogether,
+    blankAroundDropTable,
+    blankAfterCreateTable,
   } = options;
   const out: string[] = [];
   let inQuery = false;
+  let inCreateTable = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
@@ -597,12 +630,28 @@ function applyBlankLineRules(
       }
     }
 
+    if (blankAroundDropTable && isDropTable(trimmed)) {
+      const prev = lastNonBlankTrimmed(out);
+      if (
+        prev &&
+        !isDropTable(prev) &&
+        out.length &&
+        out[out.length - 1]!.trim() !== ""
+      ) {
+        out.push("");
+      }
+    }
+
     out.push(line);
 
     if (isCommentOnly(trimmed)) continue;
 
     if (/^(SELECT|INSERT|UPDATE|DELETE)\b/i.test(trimmed)) {
       inQuery = true;
+    }
+
+    if (isCreateTable(trimmed)) {
+      inCreateTable = true;
     }
 
     let wantBlank = false;
@@ -615,6 +664,12 @@ function applyBlankLineRules(
         statementKind(next.trimmed) !== kind &&
         !isBlockCloserOrElse(next.trimmed)
       ) {
+        wantBlank = true;
+      }
+    }
+
+    if (blankAroundDropTable && kind === "DROP_TABLE") {
+      if (next && statementKind(next.trimmed) !== "DROP_TABLE") {
         wantBlank = true;
       }
     }
@@ -636,19 +691,29 @@ function applyBlankLineRules(
       }
     }
 
+    if (inCreateTable && /;\s*$/.test(trimmed)) {
+      inCreateTable = false;
+      if (
+        blankAfterCreateTable &&
+        next &&
+        !isCreateTable(next.trimmed)
+      ) {
+        wantBlank = true;
+      }
+    }
+
     if (blankAfterIf && next) {
       const isIfThen =
         /^IF\b/i.test(trimmed) &&
         /\bTHEN\b/i.test(trimmed) &&
         !/\bEND\s+IF\b/i.test(trimmed);
       const isElse = isElseLine(trimmed) || isElseIfLine(trimmed);
-      const isEndIf = /^END\s+IF\b/i.test(trimmed);
 
       if (isIfThen || isElse) {
         wantBlank = true;
-      } else if (isEndIf) {
+      } else if (isBlockCloser(trimmed)) {
         if (keepEndClosersTogether && isBlockCloser(next.trimmed)) {
-          // keep stacked closers glued
+          // keep stacked closers glued (END IF / END FOR / END FOREACH / …)
         } else if (!isBlockCloserOrElse(next.trimmed)) {
           wantBlank = true;
         }
@@ -661,9 +726,18 @@ function applyBlankLineRules(
   return out;
 }
 
+function isCreateTable(trimmed: string): boolean {
+  return /^CREATE\s+(?:(?:TEMP(?:ORARY)?|SCRATCH)\s+)?TABLE\b/i.test(trimmed);
+}
+
+function isDropTable(trimmed: string): boolean {
+  return /^DROP\s+(?:(?:TEMP(?:ORARY)?|SCRATCH)\s+)?TABLE\b/i.test(trimmed);
+}
+
 function statementKind(trimmed: string): StatementKind {
   if (/^DEFINE\b/i.test(trimmed)) return "DEFINE";
   if (/^LET\b/i.test(trimmed)) return "LET";
+  if (isDropTable(trimmed)) return "DROP_TABLE";
   return "OTHER";
 }
 

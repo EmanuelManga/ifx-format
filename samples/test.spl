@@ -164,6 +164,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
 
     END IF;
   END FOR;
+
   -- FOREACH over cursor with nested FOR + IF + subquery DML
   FOREACH
       SELECT o.order_id, o.order_qty, o.supplier_id
@@ -248,6 +249,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
         END IF;
       END IF;
     END FOR;
+
     IF l_ok = 1 THEN
 
         UPDATE purchase_order
@@ -262,6 +264,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
 
     END IF;
   END FOREACH;
+
   -- Final nested IF chain
   IF l_status = 'P' THEN
 

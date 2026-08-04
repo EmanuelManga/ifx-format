@@ -2,7 +2,7 @@
     "name": "ifx-format",
     "displayName": "IFX Format",
     "description": "Formats Informix SPL procedures without overriding generic SQL formatters (Postgres, etc.)",
-    "version": "0.2.15",
+    "version": "0.2.16",
     "publisher": "emanuelmanga",
     "license": "MIT",
     "icon": "public/assets/icon/informix_icon_big@2x.png",
@@ -105,7 +105,7 @@
                 "ifxFormat.blankAfterIf": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Línea en blanco después de IF...THEN, ELSE y END IF"
+                    "description": "Línea en blanco después de IF...THEN, ELSE, END IF, END FOR, END FOREACH y END WHILE"
                 },
                 "ifxFormat.blankAfterReturning": {
                     "type": "boolean",
@@ -121,6 +121,21 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Sin líneas en blanco entre cierres consecutivos (END IF / END FOR / END FOREACH / END WHILE)"
+                },
+                "ifxFormat.spaceBeforeCreateTableParen": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Espacio antes de '(' en CREATE [TEMP] TABLE nombre ("
+                },
+                "ifxFormat.blankAroundDropTable": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Agrupa DROP TABLE consecutivos; línea en blanco arriba y abajo del grupo"
+                },
+                "ifxFormat.blankAfterCreateTable": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco después de CREATE [TEMP] TABLE ...;"
                 },
                 "ifxFormat.syntax.highlightVariables": {
                     "type": "boolean",
