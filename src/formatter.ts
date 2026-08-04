@@ -16,6 +16,9 @@ const KEYWORDS = [
   "IF",
   "EXISTS",
   "CREATE",
+  "TEMP",
+  "TEMPORARY",
+  "SCRATCH",
   "TABLE",
   "ALTER",
   "INDEX",
@@ -103,6 +106,8 @@ const KEYWORDS = [
   "ROLLBACK",
   "WITH",
   "HOLD",
+  "NO",
+  "LOG",
 ] as const;
 
 const KEYWORD_RE = new RegExp(`\\b(${KEYWORDS.join("|")})\\b`, "gi");
@@ -158,6 +163,33 @@ function applyBlockIndent(
   let pendingThen = false;
   let prevCode = "";
   const parenStack: number[] = [];
+  /** Preferred depth for AND/OR hanging under WHERE/HAVING/ON */
+  let andOrBase: number | null = null;
+  /** Saved andOrBase for each open paren level */
+  const andOrStack: (number | null)[] = [];
+
+  const pushParen = (contentDepth: number) => {
+    andOrStack.push(andOrBase);
+    andOrBase = null;
+    parenStack.push(contentDepth);
+  };
+
+  const popParen = () => {
+    if (parenStack.length) parenStack.pop();
+    andOrBase = andOrStack.length ? andOrStack.pop()! : null;
+  };
+
+  const applyParens = (line: string, lineDepth: number) => {
+    const plain = stripStrings(line);
+    for (let i = 0; i < plain.length; i++) {
+      const ch = plain[i];
+      if (ch === "(") {
+        pushParen(lineDepth + 1);
+      } else if (ch === ")" && parenStack.length) {
+        popParen();
+      }
+    }
+  };
 
   for (const original of lines) {
     const trimmed = original.trim();
@@ -179,6 +211,8 @@ function applyBlockIndent(
       pendingThen = false;
       prevCode = "";
       parenStack.length = 0;
+      andOrStack.length = 0;
+      andOrBase = null;
       out.push(line);
       continue;
     }
@@ -189,6 +223,8 @@ function applyBlockIndent(
       pendingThen = false;
       prevCode = line;
       parenStack.length = 0;
+      andOrStack.length = 0;
+      andOrBase = null;
       out.push(line);
       continue;
     }
@@ -199,6 +235,8 @@ function applyBlockIndent(
       pendingThen = false;
       prevCode = "";
       parenStack.length = 0;
+      andOrStack.length = 0;
+      andOrBase = null;
       out.push(line);
       continue;
     }
@@ -223,45 +261,32 @@ function applyBlockIndent(
         continue;
       }
 
-      const starter = TOP_LEVEL_STARTER_RE.test(line);
+      // Nested SELECT/INSERT/... must keep paren context (subqueries)
+      const starter =
+        TOP_LEVEL_STARTER_RE.test(line) && parenStack.length === 0;
       if (starter) {
         parenStack.length = 0;
+        andOrStack.length = 0;
+        andOrBase = null;
       }
 
-      let clauseExtra = 0;
-      if (!starter) {
-        if (EXTRA_CONTINUATION_RE.test(line)) {
-          clauseExtra = 2;
-        } else if (CLAUSE_RE.test(line)) {
-          clauseExtra = 1;
-        } else if (prevCode && /,\s*$/.test(prevCode) && parenStack.length === 0) {
-          clauseExtra = 1;
-        } else if (
-          prevCode &&
-          !/;\s*$/.test(prevCode) &&
-          parenStack.length === 0
-        ) {
-          clauseExtra = 1;
-        } else if (
-          prevCode &&
-          /[,(]\s*$/.test(prevCode) &&
-          parenStack.length === 0
-        ) {
-          clauseExtra = 1;
-        }
-      }
-
-      let depth: number;
-      if (/^\)/.test(line) && parenStack.length > 0) {
-        depth = parenStack[parenStack.length - 1]!;
-      } else if (parenStack.length > 0) {
-        depth = parenStack[parenStack.length - 1]! + clauseExtra;
-      } else {
-        depth = starter ? 0 : clauseExtra;
-      }
+      const depth = depthForSqlLine(line, {
+        starter,
+        parenStack,
+        prevCode,
+        andOrBase,
+        baseDepth: 0,
+      });
 
       out.push(unit.repeat(depth) + line);
-      updateParenStack(parenStack, line, depth);
+      if (/^(WHERE|HAVING|ON)\b/i.test(line)) {
+        andOrBase = depth + 1;
+      }
+      applyParens(line, depth);
+      if (/;\s*$/.test(line) && parenStack.length === 0) {
+        andOrBase = null;
+        andOrStack.length = 0;
+      }
       prevCode = line;
       continue;
     }
@@ -274,40 +299,23 @@ function applyBlockIndent(
     if (elseLine || elseIfLine) {
       lineNest = Math.max(0, nest - 1);
       parenStack.length = 0;
+      andOrStack.length = 0;
+      andOrBase = null;
     } else if (closers > 0) {
       lineNest = Math.max(0, nest - closers);
       parenStack.length = 0;
+      andOrStack.length = 0;
+      andOrBase = null;
     }
 
-    let clauseExtra = 0;
-    if (!isBlockKeywordLine(line) && !isCommentOnly(line)) {
-      if (EXTRA_CONTINUATION_RE.test(line)) {
-        clauseExtra = 2;
-      } else if (CLAUSE_RE.test(line)) {
-        clauseExtra = 1;
-      } else if (prevCode && /,\s*$/.test(prevCode) && parenStack.length === 0) {
-        clauseExtra = 1;
-      }
-    }
-
-    let depth: number;
-    if (/^\)/.test(line) && parenStack.length > 0) {
-      depth = parenStack[parenStack.length - 1]!;
-    } else if (parenStack.length > 0 && !isBlockKeywordLine(line)) {
-      depth = parenStack[parenStack.length - 1]! + clauseExtra;
-    } else {
-      depth = 1 + lineNest + clauseExtra;
-      if (
-        !isBlockKeywordLine(line) &&
-        !isCommentOnly(line) &&
-        clauseExtra === 0 &&
-        prevCode &&
-        /[,(]\s*$/.test(prevCode) &&
-        parenStack.length === 0
-      ) {
-        depth = 1 + lineNest + 1;
-      }
-    }
+    const depth = depthForSqlLine(line, {
+      starter: false,
+      parenStack,
+      prevCode,
+      andOrBase,
+      baseDepth: 1 + lineNest,
+      isBlock: isBlockKeywordLine(line) || isCommentOnly(line),
+    });
 
     out.push(unit.repeat(depth) + line);
 
@@ -331,7 +339,14 @@ function applyBlockIndent(
     if (openers.whileDo) nest += 1;
 
     if (!isCommentOnly(line) && !isBlockKeywordLine(line)) {
-      updateParenStack(parenStack, line, depth);
+      applyParens(line, depth);
+    }
+
+    if (/^(WHERE|HAVING|ON)\b/i.test(line)) {
+      andOrBase = depth + 1;
+    } else if (/;\s*$/.test(line) && parenStack.length === 0) {
+      andOrBase = null;
+      andOrStack.length = 0;
     }
 
     if (!isCommentOnly(line)) {
@@ -342,16 +357,70 @@ function applyBlockIndent(
   return out;
 }
 
-function updateParenStack(stack: number[], line: string, lineDepth: number): void {
-  const plain = stripStrings(line);
-  for (let i = 0; i < plain.length; i++) {
-    const ch = plain[i];
-    if (ch === "(") {
-      stack.push(lineDepth + 1);
-    } else if (ch === ")" && stack.length) {
-      stack.pop();
+function depthForSqlLine(
+  line: string,
+  ctx: {
+    starter: boolean;
+    parenStack: number[];
+    prevCode: string;
+    andOrBase: number | null;
+    baseDepth: number;
+    isBlock?: boolean;
+  },
+): number {
+  const { starter, parenStack, prevCode, andOrBase, baseDepth, isBlock } = ctx;
+
+  if (isBlock) {
+    return baseDepth;
+  }
+
+  if (/^\)/.test(line) && parenStack.length > 0) {
+    return parenStack[parenStack.length - 1]!;
+  }
+
+  if (EXTRA_CONTINUATION_RE.test(line)) {
+    const parenTop = parenStack.length > 0 ? parenStack[parenStack.length - 1]! : 0;
+    if (andOrBase !== null) {
+      return Math.max(andOrBase, parenTop);
+    }
+    if (parenStack.length > 0) {
+      return parenTop;
+    }
+    return baseDepth + 2;
+  }
+
+  let clauseExtra = 0;
+  if (!starter) {
+    if (CLAUSE_RE.test(line)) {
+      clauseExtra = 1;
+    } else if (prevCode && /,\s*$/.test(prevCode) && parenStack.length === 0) {
+      clauseExtra = 1;
+    } else if (
+      prevCode &&
+      !/;\s*$/.test(prevCode) &&
+      parenStack.length === 0
+    ) {
+      clauseExtra = 1;
+    } else if (
+      prevCode &&
+      /[,(]\s*$/.test(prevCode) &&
+      parenStack.length === 0
+    ) {
+      clauseExtra = 1;
     }
   }
+
+  if (parenStack.length > 0) {
+    return parenStack[parenStack.length - 1]! + clauseExtra;
+  }
+
+  if (starter) return baseDepth;
+
+  if (clauseExtra === 0 && prevCode && /[,(]\s*$/.test(prevCode)) {
+    return baseDepth + 1;
+  }
+
+  return baseDepth + clauseExtra;
 }
 
 function stripStrings(line: string): string {

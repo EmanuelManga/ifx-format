@@ -109,7 +109,7 @@
         },
         {
           "name": "keyword.other.sql",
-          "match": "(?i)\\b(RETURNING|PROCEDURE|CALL|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE)\\b"
+          "match": "(?i)\\b(RETURNING|PROCEDURE|CALL|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE|TEMP|TEMPORARY|SCRATCH|LOG)\\b"
         }
       ]
     },

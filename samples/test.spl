@@ -60,7 +60,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
 
   -- Query with subquery in SELECT / WHERE
   SELECT
-  NVL(i.qty_on_hand, 0),
+    NVL(i.qty_on_hand, 0),
     NVL(i.qty_reserved, 0),
     NVL(i.unit_cost, 0),
     NVL(i.min_qty, 0),
@@ -74,7 +74,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
           AND c.cost_date >= p_cutoff_date
       )
     INTO
-  l_qty,
+    l_qty,
     l_reserved,
     l_unit_cost,
     l_min_qty,
@@ -107,7 +107,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
   FOR l_line = 1 TO 3 STEP 1
     IF l_line = 1 THEN
 
-      SELECT COUNT(*)
+        SELECT COUNT(*)
         INTO l_batch_no
         FROM sync_batch b
         WHERE b.warehouse_id = p_warehouse_id
@@ -150,7 +150,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
 
     ELSE
 
-      UPDATE inventory
+        UPDATE inventory
         SET last_check = TODAY,
         notes = l_msg
         WHERE warehouse_id = p_warehouse_id
@@ -166,7 +166,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
   END FOR;
   -- FOREACH over cursor with nested FOR + IF + subquery DML
   FOREACH
-    SELECT o.order_id, o.order_qty, o.supplier_id
+      SELECT o.order_id, o.order_qty, o.supplier_id
       INTO l_batch_no, l_qty, l_supplier_id
       FROM purchase_order o
       WHERE o.sku = p_sku
@@ -201,14 +201,14 @@ CREATE PROCEDURE sp_demo_inventory_sync(
 
         IF l_qty > l_available THEN
 
-          INSERT INTO sync_audit (
-            warehouse_id,
-            sku,
-            batch_no,
-            line_no,
-            audit_msg,
-            created_on
-            )
+            INSERT INTO sync_audit (
+              warehouse_id,
+              sku,
+              batch_no,
+              line_no,
+              audit_msg,
+              created_on
+              )
             VALUES (
               p_warehouse_id,
               p_sku,
@@ -220,16 +220,16 @@ CREATE PROCEDURE sp_demo_inventory_sync(
 
         ELSE
 
-          INSERT INTO sync_audit (
-            warehouse_id,
-            sku,
-            batch_no,
-            line_no,
-            audit_msg,
-            created_on
-            )
-          SELECT
-          p_warehouse_id,
+            INSERT INTO sync_audit (
+              warehouse_id,
+              sku,
+              batch_no,
+              line_no,
+              audit_msg,
+              created_on
+              )
+            SELECT
+            p_warehouse_id,
             p_sku,
             l_batch_no,
             l_line,
@@ -250,7 +250,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
     END FOR;
     IF l_ok = 1 THEN
 
-      UPDATE purchase_order
+        UPDATE purchase_order
         SET status_flag = 'S',
         synced_on = CURRENT
         WHERE order_id = l_batch_no
