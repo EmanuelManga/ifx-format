@@ -7,6 +7,8 @@ export type FormatOptions = {
   blankAfterIf?: boolean;
   blankAfterReturning?: boolean;
   blankBeforeElseEndIf?: boolean;
+  blankBeforeException?: boolean;
+  blankAfterException?: boolean;
   keepEndClosersTogether?: boolean;
   /** Space before `(` in CREATE [TEMP] TABLE name ( */
   spaceBeforeCreateTableParen?: boolean;
@@ -67,6 +69,9 @@ const KEYWORDS = [
   "CONTINUE",
   "EXIT",
   "RETURN",
+  "ON",
+  "EXCEPTION",
+  "RAISE",
   "INSERT",
   "UPDATE",
   "DELETE",
@@ -132,6 +137,7 @@ type OpenerFlags = {
   forLoop: boolean;
   foreach: boolean;
   whileDo: boolean;
+  exception: boolean;
 };
 
 export function formatInformixSpl(
@@ -157,6 +163,8 @@ export function formatInformixSpl(
     blankAfterIf: options.blankAfterIf !== false,
     blankAfterReturning: options.blankAfterReturning !== false,
     blankBeforeElseEndIf: options.blankBeforeElseEndIf !== false,
+    blankBeforeException: options.blankBeforeException !== false,
+    blankAfterException: options.blankAfterException !== false,
     keepEndClosersTogether: options.keepEndClosersTogether !== false,
     blankAroundDropTable: options.blankAroundDropTable !== false,
     blankAfterCreateTable: options.blankAfterCreateTable !== false,
@@ -299,7 +307,7 @@ function applyBlockIndent(
       });
 
       out.push(unit.repeat(depth) + line);
-      if (/^(WHERE|HAVING|ON)\b/i.test(line)) {
+      if (isAndOrAnchor(line)) {
         andOrBase = depth + 1;
       }
       applyParens(line, depth);
@@ -357,12 +365,13 @@ function applyBlockIndent(
     if (openers.forLoop) nest += 1;
     if (openers.foreach) nest += 1;
     if (openers.whileDo) nest += 1;
+    if (openers.exception) nest += 1;
 
     if (!isCommentOnly(line) && !isBlockKeywordLine(line)) {
       applyParens(line, depth);
     }
 
-    if (/^(WHERE|HAVING|ON)\b/i.test(line)) {
+    if (isAndOrAnchor(line)) {
       andOrBase = depth + 1;
     } else if (/;\s*$/.test(line) && parenStack.length === 0) {
       andOrBase = null;
@@ -449,7 +458,7 @@ function stripStrings(line: string): string {
 
 function isProcedureBodyStart(line: string): boolean {
   if (isCommentOnly(line)) return true;
-  return /^(DEFINE|LET|CALL|SELECT|INSERT|UPDATE|DELETE|RETURN|IF|FOR|FOREACH|WHILE|BEGIN)\b/i.test(
+  return /^(DEFINE|LET|CALL|SELECT|INSERT|UPDATE|DELETE|RETURN|IF|FOR|FOREACH|WHILE|BEGIN|ON\s+EXCEPTION|RAISE)\b/i.test(
     line,
   );
 }
@@ -461,9 +470,15 @@ function countOpeners(line: string): OpenerFlags {
     forLoop: false,
     foreach: false,
     whileDo: false,
+    exception: false,
   };
 
-  if (/^END\s+(IF|FOR|FOREACH|WHILE|PROCEDURE)\b/i.test(line)) {
+  if (/^END\s+(IF|FOR|FOREACH|WHILE|PROCEDURE|EXCEPTION)\b/i.test(line)) {
+    return result;
+  }
+
+  if (/^ON\s+EXCEPTION\b/i.test(line)) {
+    result.exception = true;
     return result;
   }
 
@@ -499,6 +514,7 @@ function countClosers(line: string): number {
   if (/^END\s+FOR\b/i.test(line)) n += 1;
   if (/^END\s+FOREACH\b/i.test(line)) n += 1;
   if (/^END\s+WHILE\b/i.test(line)) n += 1;
+  if (/^END\s+EXCEPTION\b/i.test(line)) n += 1;
   return n;
 }
 
@@ -511,9 +527,17 @@ function isElseIfLine(line: string): boolean {
 }
 
 function isBlockKeywordLine(line: string): boolean {
-  return /^(IF|ELSE|END|FOR|FOREACH|WHILE|DEFINE|LET|CALL|RETURN|CONTINUE|EXIT|CREATE|DROP|BEGIN|COMMIT|ROLLBACK)\b/i.test(
-    line,
+  return (
+    /^(IF|ELSE|END|FOR|FOREACH|WHILE|DEFINE|LET|CALL|RETURN|CONTINUE|EXIT|CREATE|DROP|BEGIN|COMMIT|ROLLBACK|RAISE)\b/i.test(
+      line,
+    ) || /^ON\s+EXCEPTION\b/i.test(line)
   );
+}
+
+/** WHERE/HAVING/ON clause anchors — not ON EXCEPTION. */
+function isAndOrAnchor(line: string): boolean {
+  if (/^(WHERE|HAVING)\b/i.test(line)) return true;
+  return /^ON\b/i.test(line) && !/^ON\s+EXCEPTION\b/i.test(line);
 }
 
 function isCommentOnly(line: string): boolean {
@@ -587,6 +611,8 @@ function applyBlankLineRules(
       | "blankAfterIf"
       | "blankAfterReturning"
       | "blankBeforeElseEndIf"
+      | "blankBeforeException"
+      | "blankAfterException"
       | "keepEndClosersTogether"
       | "blankAroundDropTable"
       | "blankAfterCreateTable"
@@ -598,6 +624,8 @@ function applyBlankLineRules(
     blankAfterIf,
     blankAfterReturning,
     blankBeforeElseEndIf,
+    blankBeforeException,
+    blankAfterException,
     keepEndClosersTogether,
     blankAroundDropTable,
     blankAfterCreateTable,
@@ -617,6 +645,23 @@ function applyBlankLineRules(
       (isElseLine(trimmed) ||
         isElseIfLine(trimmed) ||
         /^END\s+IF\b/i.test(trimmed))
+    ) {
+      const prev = lastNonBlankTrimmed(out);
+      const gluedClosers =
+        keepEndClosersTogether &&
+        isBlockCloser(trimmed) &&
+        prev !== null &&
+        isBlockCloser(prev);
+
+      if (!gluedClosers && out.length && out[out.length - 1]!.trim() !== "") {
+        out.push("");
+      }
+    }
+
+    if (
+      blankBeforeException &&
+      (/^ON\s+EXCEPTION\b/i.test(trimmed) ||
+        /^END\s+EXCEPTION\b/i.test(trimmed))
     ) {
       const prev = lastNonBlankTrimmed(out);
       const gluedClosers =
@@ -711,9 +756,24 @@ function applyBlankLineRules(
 
       if (isIfThen || isElse) {
         wantBlank = true;
-      } else if (isBlockCloser(trimmed)) {
+      } else if (
+        isBlockCloser(trimmed) &&
+        !/^END\s+EXCEPTION\b/i.test(trimmed)
+      ) {
         if (keepEndClosersTogether && isBlockCloser(next.trimmed)) {
           // keep stacked closers glued (END IF / END FOR / END FOREACH / …)
+        } else if (!isBlockCloserOrElse(next.trimmed)) {
+          wantBlank = true;
+        }
+      }
+    }
+
+    if (blankAfterException && next) {
+      if (/^ON\s+EXCEPTION\b/i.test(trimmed)) {
+        wantBlank = true;
+      } else if (/^END\s+EXCEPTION\b/i.test(trimmed)) {
+        if (keepEndClosersTogether && isBlockCloser(next.trimmed)) {
+          // stacked closers stay glued
         } else if (!isBlockCloserOrElse(next.trimmed)) {
           wantBlank = true;
         }
@@ -754,7 +814,7 @@ function nextMeaningfulSkippingComments(
 }
 
 function isBlockCloser(trimmed: string): boolean {
-  return /^END\s+(IF|FOR|FOREACH|WHILE)\b/i.test(trimmed);
+  return /^END\s+(IF|FOR|FOREACH|WHILE|EXCEPTION)\b/i.test(trimmed);
 }
 
 function isBlockCloserOrElse(trimmed: string): boolean {

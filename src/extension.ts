@@ -14,6 +14,8 @@ function readOptions(): FormatOptions {
     blankAfterIf: config.get("blankAfterIf", true),
     blankAfterReturning: config.get("blankAfterReturning", true),
     blankBeforeElseEndIf: config.get("blankBeforeElseEndIf", true),
+    blankBeforeException: config.get("blankBeforeException", true),
+    blankAfterException: config.get("blankAfterException", true),
     keepEndClosersTogether: config.get("keepEndClosersTogether", true),
     spaceBeforeCreateTableParen: config.get("spaceBeforeCreateTableParen", true),
     blankAroundDropTable: config.get("blankAroundDropTable", true),
@@ -40,14 +42,7 @@ function formatDocument(document: vscode.TextDocument): vscode.TextEdit[] {
 export function activate(context: vscode.ExtensionContext): void {
   const highlighter = new VariableHighlighter();
   highlighter.recreateDecorations(readHighlightColors());
-
-  const paint = () => {
-    for (const editor of vscode.window.visibleTextEditors) {
-      highlighter.refresh(editor);
-    }
-  };
-
-  paint();
+  highlighter.paintVisible();
 
   const provider: vscode.DocumentFormattingEditProvider = {
     provideDocumentFormattingEdits(document) {
@@ -85,17 +80,20 @@ export function activate(context: vscode.ExtensionContext): void {
       );
       highlighter.schedule(editor);
     }),
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      highlighter.schedule(editor);
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      highlighter.paintVisible();
+    }),
+    vscode.window.onDidChangeVisibleTextEditors(() => {
+      highlighter.paintVisible();
     }),
     vscode.workspace.onDidOpenTextDocument((doc) => {
       if (doc.languageId !== LANGUAGE_ID) return;
-      paint();
+      highlighter.paintVisible();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (!e.affectsConfiguration("ifxFormat.syntax")) return;
       highlighter.recreateDecorations(readHighlightColors());
-      paint();
+      highlighter.paintVisible();
     }),
   );
 }

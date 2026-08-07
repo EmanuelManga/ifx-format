@@ -19,6 +19,8 @@ const formatted = formatInformixSpl(src, {
   blankAfterIf: true,
   blankAfterReturning: true,
   blankBeforeElseEndIf: true,
+  blankBeforeException: true,
+  blankAfterException: true,
   keepEndClosersTogether: true,
   spaceBeforeCreateTableParen: true,
   blankAroundDropTable: true,

@@ -32,12 +32,22 @@ export function extractProcedureParams(text: string): Set<string> {
   return names;
 }
 
+const ON_EXCEPTION_SET_RE =
+  /\bON\s+EXCEPTION\s+SET\s+([A-Za-z_][\w@$#]*(?:\s*,\s*[A-Za-z_][\w@$#]*)*)/gi;
+
 export function extractDefinedLocals(text: string): Set<string> {
   const names = new Set<string>();
   DEFINE_RE.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = DEFINE_RE.exec(text))) {
     names.add(match[1]!.toLowerCase());
+  }
+
+  ON_EXCEPTION_SET_RE.lastIndex = 0;
+  while ((match = ON_EXCEPTION_SET_RE.exec(text))) {
+    for (const name of match[1]!.split(/\s*,\s*/)) {
+      names.add(name.toLowerCase());
+    }
   }
   return names;
 }
@@ -102,10 +112,10 @@ function findMatchingParen(text: string, openIndex: number): number {
 
 export type Span = { start: number; end: number };
 
-export type ControlFamily = "if" | "for" | "foreach" | "while";
+export type ControlFamily = "if" | "for" | "foreach" | "while" | "exception";
 
 const CONTROL_RE =
-  /\b(?:END\s+FOREACH|END\s+WHILE|END\s+FOR|END\s+IF|ELSE\s+IF|FOREACH|WHILE|ELIF|ELSE|THEN|FOR|IF|DO)\b/gi;
+  /\b(?:END\s+FOREACH|END\s+WHILE|END\s+FOR|END\s+IF|END\s+EXCEPTION|ON\s+EXCEPTION|ELSE\s+IF|FOREACH|WHILE|ELIF|ELSE|THEN|FOR|IF|DO)\b/gi;
 
 export function findControlKeywordOffsets(
   text: string,
@@ -144,6 +154,7 @@ function controlFamily(raw: string): ControlFamily | null {
   if (t === "FOREACH" || t === "END FOREACH") return "foreach";
   if (t === "FOR" || t === "END FOR") return "for";
   if (t === "WHILE" || t === "DO" || t === "END WHILE") return "while";
+  if (t === "ON EXCEPTION" || t === "END EXCEPTION") return "exception";
   return null;
 }
 
@@ -232,4 +243,24 @@ export function findNameOffsets(text: string, names: Set<string>): Span[] {
   }
 
   return out;
+}
+
+// ponytail: assert-based self-check; run with `bun src/highlight-parse.ts`
+if (import.meta.main) {
+  const sample = `
+ON EXCEPTION SET v_err, v_isam, v_txt
+  RETURN v_err;
+END EXCEPTION
+RAISE EXCEPTION -746, 0, 'x';
+`;
+  const locals = extractDefinedLocals(sample);
+  for (const name of ["v_err", "v_isam", "v_txt"]) {
+    if (!locals.has(name)) throw new Error(`missing local ${name}`);
+  }
+  const controls = findControlKeywordOffsets(sample);
+  const families = controls.map((c) => c.family);
+  if (!families.includes("exception") || controls.length < 2) {
+    throw new Error(`expected ON/END EXCEPTION control hits, got ${JSON.stringify(controls)}`);
+  }
+  console.log("ok");
 }

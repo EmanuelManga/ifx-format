@@ -90,7 +90,7 @@
                     "default": 2,
                     "minimum": 1,
                     "maximum": 8,
-                    "description": "Espacios por nivel de anidamiento (IF/FOR/FOREACH)"
+                    "description": "Espacios por nivel de anidamiento (IF/FOR/FOREACH/WHILE/ON EXCEPTION)"
                 },
                 "ifxFormat.useTabs": {
                     "type": "boolean",
@@ -117,10 +117,20 @@
                     "default": true,
                     "description": "Línea en blanco antes de ELSE y END IF"
                 },
+                "ifxFormat.blankBeforeException": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco antes de ON EXCEPTION y END EXCEPTION"
+                },
+                "ifxFormat.blankAfterException": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco después de ON EXCEPTION y END EXCEPTION"
+                },
                 "ifxFormat.keepEndClosersTogether": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Sin líneas en blanco entre cierres consecutivos (END IF / END FOR / END FOREACH / END WHILE)"
+                    "description": "Sin líneas en blanco entre cierres consecutivos (END IF / END FOR / END FOREACH / END WHILE / END EXCEPTION)"
                 },
                 "ifxFormat.spaceBeforeCreateTableParen": {
                     "type": "boolean",
@@ -150,12 +160,12 @@
                 "ifxFormat.syntax.localColor": {
                     "type": "string",
                     "default": "#2DD4BF",
-                    "description": "Color de variables DEFINE/LET (todas las apariciones). Distinto al azul de keywords."
+                    "description": "Color de variables DEFINE/LET y de ON EXCEPTION SET (todas las apariciones). Distinto al azul de keywords."
                 },
                 "ifxFormat.syntax.highlightControl": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Colorea IF/ELSE/FOR/FOREACH/WHILE con el mismo color que su END correspondiente"
+                    "description": "Colorea IF/ELSE/FOR/FOREACH/WHILE/ON EXCEPTION con el mismo color que su END correspondiente"
                 },
                 "ifxFormat.syntax.controlIfColor": {
                     "type": "string",
@@ -176,6 +186,11 @@
                     "type": "string",
                     "default": "#82AAFF",
                     "description": "Color de WHILE / DO / END WHILE"
+                },
+                "ifxFormat.syntax.controlExceptionColor": {
+                    "type": "string",
+                    "default": "#FF5370",
+                    "description": "Color de ON EXCEPTION / END EXCEPTION"
                 }
             }
         }

@@ -105,11 +105,11 @@
       "patterns": [
         {
           "name": "keyword.control.informix-spl",
-          "match": "(?i)\\b(END\\s+(FOREACH|WHILE|PROCEDURE|FOR|IF)|ELSE\\s+IF|ELIF|FOREACH|WHILE|ELSE|THEN|FOR|IF|DO)\\b"
+          "match": "(?i)\\b(END\\s+(FOREACH|WHILE|PROCEDURE|FOR|IF|EXCEPTION)|ON\\s+EXCEPTION|ELSE\\s+IF|ELIF|FOREACH|WHILE|ELSE|THEN|FOR|IF|DO)\\b"
         },
         {
           "name": "keyword.other.sql",
-          "match": "(?i)\\b(RETURNING|PROCEDURE|CALL|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE|TEMP|TEMPORARY|SCRATCH|LOG)\\b"
+          "match": "(?i)\\b(RAISE\\s+EXCEPTION|RETURNING|PROCEDURE|CALL|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE|TEMP|TEMPORARY|SCRATCH|LOG)\\b"
         }
       ]
     },

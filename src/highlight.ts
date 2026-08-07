@@ -18,6 +18,7 @@ export type HighlightColors = {
   controlForColor: string;
   controlForeachColor: string;
   controlWhileColor: string;
+  controlExceptionColor: string;
 };
 
 export function readHighlightColors(): HighlightColors {
@@ -31,8 +32,27 @@ export function readHighlightColors(): HighlightColors {
     controlForColor: config.get("syntax.controlForColor", "#82AAFF"),
     controlForeachColor: config.get("syntax.controlForeachColor", "#82AAFF"),
     controlWhileColor: config.get("syntax.controlWhileColor", "#82AAFF"),
+    controlExceptionColor: config.get(
+      "syntax.controlExceptionColor",
+      "#FF5370",
+    ),
   };
 }
+
+type CachedRanges = {
+  version: number;
+  params: vscode.Range[];
+  locals: vscode.Range[];
+  control: Record<ControlFamily, vscode.Range[]>;
+};
+
+const EMPTY_CONTROL: Record<ControlFamily, vscode.Range[]> = {
+  if: [],
+  for: [],
+  foreach: [],
+  while: [],
+  exception: [],
+};
 
 export class VariableHighlighter implements vscode.Disposable {
   private paramDecoration: vscode.TextEditorDecorationType | undefined;
@@ -41,9 +61,15 @@ export class VariableHighlighter implements vscode.Disposable {
     ControlFamily,
     vscode.TextEditorDecorationType
   >();
+  private colors: HighlightColors = readHighlightColors();
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private pendingUri: string | undefined;
+  /** uri → last computed ranges for that document version */
+  private cache = new Map<string, CachedRanges>();
 
   recreateDecorations(colors: HighlightColors): void {
+    this.colors = colors;
+    this.cache.clear();
     this.paramDecoration?.dispose();
     this.localDecoration?.dispose();
     for (const d of this.controlDecorations.values()) d.dispose();
@@ -62,6 +88,7 @@ export class VariableHighlighter implements vscode.Disposable {
       for: colors.controlForColor,
       foreach: colors.controlForeachColor,
       while: colors.controlWhileColor,
+      exception: colors.controlExceptionColor,
     };
     for (const [family, color] of Object.entries(controlColors) as [
       ControlFamily,
@@ -79,77 +106,104 @@ export class VariableHighlighter implements vscode.Disposable {
 
   dispose(): void {
     if (this.timer) clearTimeout(this.timer);
+    this.cache.clear();
     this.paramDecoration?.dispose();
     this.localDecoration?.dispose();
     for (const d of this.controlDecorations.values()) d.dispose();
     this.controlDecorations.clear();
   }
 
+  /** Debounced — only for typing. */
   schedule(editor: vscode.TextEditor | undefined): void {
+    if (!editor || editor.document.languageId !== LANGUAGE_ID) return;
+    this.pendingUri = editor.document.uri.toString();
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.refresh(editor), 120);
+    this.timer = setTimeout(() => {
+      const uri = this.pendingUri;
+      const target = vscode.window.visibleTextEditors.find(
+        (ed) => ed.document.uri.toString() === uri,
+      );
+      if (target) this.refresh(target, true);
+    }, 80);
   }
 
-  refresh(editor: vscode.TextEditor | undefined): void {
-    if (!editor || editor.document.languageId !== LANGUAGE_ID) {
-      return;
+  /** Immediate — tab switch / open / config. */
+  paintVisible(): void {
+    for (const editor of vscode.window.visibleTextEditors) {
+      this.refresh(editor, false);
     }
+  }
+
+  refresh(editor: vscode.TextEditor | undefined, bustCache: boolean): void {
+    if (!editor || editor.document.languageId !== LANGUAGE_ID) return;
     if (!this.paramDecoration || !this.localDecoration) return;
 
-    const colors = readHighlightColors();
-    const text = editor.document.getText();
+    const doc = editor.document;
+    const uri = doc.uri.toString();
+    const cached = bustCache ? undefined : this.cache.get(uri);
+    const ranges =
+      cached && cached.version === doc.version
+        ? cached
+        : this.compute(doc);
 
-    if (!colors.enabled) {
-      editor.setDecorations(this.paramDecoration, []);
-      editor.setDecorations(this.localDecoration, []);
-    } else {
-      const params = extractProcedureParams(text);
-      const locals = extractDefinedLocals(text);
+    this.cache.set(uri, ranges);
+    this.apply(editor, ranges);
+  }
 
-      for (const p of params) locals.delete(p);
+  private compute(doc: vscode.TextDocument): CachedRanges {
+    const text = doc.getText();
+    const colors = this.colors;
 
-      const toRanges = (names: Set<string>) =>
-        findNameOffsets(text, names).map(
-          (span) =>
-            new vscode.Range(
-              editor.document.positionAt(span.start),
-              editor.document.positionAt(span.end),
-            ),
-        );
+    const toRanges = (spans: { start: number; end: number }[]) =>
+      spans.map(
+        (span) =>
+          new vscode.Range(
+            doc.positionAt(span.start),
+            doc.positionAt(span.end),
+          ),
+      );
 
-      editor.setDecorations(this.paramDecoration, toRanges(params));
-      editor.setDecorations(this.localDecoration, toRanges(locals));
+    let params: vscode.Range[] = [];
+    let locals: vscode.Range[] = [];
+
+    if (colors.enabled) {
+      const paramNames = extractProcedureParams(text);
+      const localNames = extractDefinedLocals(text);
+      for (const p of paramNames) localNames.delete(p);
+      params = toRanges(findNameOffsets(text, paramNames));
+      locals = toRanges(findNameOffsets(text, localNames));
     }
 
-    if (!colors.highlightControl) {
-      for (const d of this.controlDecorations.values()) {
-        editor.setDecorations(d, []);
-      }
-      return;
-    }
-
-    const grouped: Record<ControlFamily, vscode.Range[]> = {
+    const control: Record<ControlFamily, vscode.Range[]> = {
       if: [],
       for: [],
       foreach: [],
       while: [],
+      exception: [],
     };
 
-    for (const hit of findControlKeywordOffsets(text)) {
-      grouped[hit.family].push(
-        new vscode.Range(
-          editor.document.positionAt(hit.start),
-          editor.document.positionAt(hit.end),
-        ),
-      );
+    if (colors.highlightControl) {
+      for (const hit of findControlKeywordOffsets(text)) {
+        control[hit.family].push(
+          new vscode.Range(doc.positionAt(hit.start), doc.positionAt(hit.end)),
+        );
+      }
     }
 
-    for (const [family, ranges] of Object.entries(grouped) as [
-      ControlFamily,
-      vscode.Range[],
-    ][]) {
-      const decoration = this.controlDecorations.get(family);
-      if (decoration) editor.setDecorations(decoration, ranges);
+    return { version: doc.version, params, locals, control };
+  }
+
+  private apply(editor: vscode.TextEditor, ranges: CachedRanges): void {
+    editor.setDecorations(this.paramDecoration!, ranges.params);
+    editor.setDecorations(this.localDecoration!, ranges.locals);
+
+    for (const [family, decoration] of this.controlDecorations) {
+      editor.setDecorations(
+        decoration,
+        this.colors.highlightControl
+          ? ranges.control[family]
+          : EMPTY_CONTROL[family],
+      );
     }
   }
 }
