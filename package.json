@@ -2,7 +2,7 @@
     "name": "ifx-format",
     "displayName": "IFX Format",
     "description": "Formats Informix SPL and 4GL without overriding generic SQL formatters (Postgres, etc.)",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "publisher": "emanuelmanga",
     "license": "MIT",
     "icon": "public/assets/icon/informix_icon_big@2x.png",
@@ -33,7 +33,8 @@
     ],
     "activationEvents": [
         "onLanguage:informix-spl",
-        "onLanguage:informix-4gl"
+        "onLanguage:informix-4gl",
+        "onStartupFinished"
     ],
     "main": "./dist/extension.cjs",
     "contributes": {
@@ -125,6 +126,11 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Convierte keywords Informix/SQL a mayúsculas (SPL)"
+                },
+                "ifxFormat.customFileIcons": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Mostrar iconos custom de IFX en .spl/.ifs/.ifx/.4gl. Al desactivar, con Material Icon Theme se fuerza el icono genérico en esas extensiones (VS Code no permite quitar language icons solo con un setting)."
                 },
                 "ifxFormat.indentSize": {
                     "type": "number",

@@ -5,6 +5,10 @@ import {
   type Format4glOptions,
 } from "./formatter-4gl";
 import { readHighlightColors, VariableHighlighter } from "./highlight";
+import {
+  applyCustomFileIcons,
+  customFileIconsSettingId,
+} from "./file-icons";
 
 const LANG_SPL = "informix-spl";
 const LANG_4GL = "informix-4gl";
@@ -68,6 +72,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const highlighter = new VariableHighlighter();
   highlighter.recreateDecorations(readHighlightColors());
   highlighter.paintVisible();
+
+  void applyCustomFileIcons(context);
 
   const splProvider: vscode.DocumentFormattingEditProvider = {
     provideDocumentFormattingEdits(document) {
@@ -137,9 +143,13 @@ export function activate(context: vscode.ExtensionContext): void {
       highlighter.paintVisible();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration("ifxFormat.syntax")) return;
-      highlighter.recreateDecorations(readHighlightColors());
-      highlighter.paintVisible();
+      if (e.affectsConfiguration("ifxFormat.syntax")) {
+        highlighter.recreateDecorations(readHighlightColors());
+        highlighter.paintVisible();
+      }
+      if (e.affectsConfiguration(customFileIconsSettingId())) {
+        void applyCustomFileIcons(context);
+      }
     }),
   );
 }

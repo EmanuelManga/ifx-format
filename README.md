@@ -30,7 +30,7 @@ Formats **Informix SPL** and **Informix 4GL** in Cursor and VS Code without over
 ### Shared
 
 - Does not interfere with Postgres / other `.sql` formatters
-- Custom icon for Informix file extensions
+- Custom icon for Informix file extensions (toggle with `ifxFormat.customFileIcons`)
 - Format on save enabled by default for both languages
 
 ## Preview
@@ -125,6 +125,12 @@ END PROCEDURE;
 ```
 
 ## Settings
+
+### Shared
+
+| Setting                       | Default | Description |
+| ----------------------------- | ------- | ----------- |
+| `ifxFormat.customFileIcons`   | `true`  | Show custom IFX icons for `.spl` / `.ifs` / `.ifx` / `.4gl`. When off and Material Icon Theme is installed, those extensions use the generic file icon. VS Code cannot remove language icons without an icon-theme override. |
 
 ### SPL formatting (`ifxFormat.*`)
 

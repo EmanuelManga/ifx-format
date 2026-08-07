@@ -30,7 +30,7 @@ Formatea **Informix SPL** e **Informix 4GL** en Cursor y VS Code, sin pisar form
 ### Compartido
 
 - No interfiere con Postgres u otros formatters `.sql`
-- Icono propio para las extensiones Informix
+- Icono propio para las extensiones Informix (se puede apagar con `ifxFormat.customFileIcons`)
 - Format on save activo por defecto en ambos lenguajes
 
 ## Preview
@@ -125,6 +125,12 @@ END PROCEDURE;
 ```
 
 ## Settings
+
+### Compartido
+
+| Setting                       | Default | Descripción |
+| ----------------------------- | ------- | ----------- |
+| `ifxFormat.customFileIcons`   | `true`  | Muestra los iconos custom de IFX en `.spl` / `.ifs` / `.ifx` / `.4gl`. Si se desactiva y tenés Material Icon Theme, esas extensiones usan el icono genérico. VS Code no permite quitar language icons sin un override del icon theme. |
 
 ### Formato SPL (`ifxFormat.*`)
 
