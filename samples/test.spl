@@ -180,6 +180,7 @@ CREATE PROCEDURE sp_demo_inventory_sync(
               AND d.qty_pending > 0
           )
         ORDER BY o.order_date
+
     LET l_lead_days = 0;
 
     SELECT NVL(s.lead_days, 7)

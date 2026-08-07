@@ -729,10 +729,15 @@ function applyBlankLineRules(
       wantBlank = true;
     }
 
-    if (inQuery && /;\s*$/.test(trimmed)) {
-      inQuery = false;
-      if (blankAfterQuery && next && !isBlockCloserOrElse(next.trimmed)) {
-        wantBlank = true;
+    if (inQuery) {
+      const queryEnded =
+        /;\s*$/.test(trimmed) ||
+        (next !== null && isSplStatementAfterQuery(next.trimmed));
+      if (queryEnded) {
+        inQuery = false;
+        if (blankAfterQuery && next && !isBlockCloserOrElse(next.trimmed)) {
+          wantBlank = true;
+        }
       }
     }
 
@@ -815,6 +820,13 @@ function nextMeaningfulSkippingComments(
 
 function isBlockCloser(trimmed: string): boolean {
   return /^END\s+(IF|FOR|FOREACH|WHILE|EXCEPTION)\b/i.test(trimmed);
+}
+
+/** SPL body after a FOREACH/cursor SELECT that has no trailing `;`. */
+function isSplStatementAfterQuery(trimmed: string): boolean {
+  return /^(LET|CALL|IF|ELSE|ELIF|FOR|FOREACH|WHILE|DEFINE|RETURN|CONTINUE|EXIT|BEGIN|COMMIT|ROLLBACK|RAISE|ON\s+EXCEPTION|END|INSERT|UPDATE|DELETE)\b/i.test(
+    trimmed,
+  );
 }
 
 function isBlockCloserOrElse(trimmed: string): boolean {

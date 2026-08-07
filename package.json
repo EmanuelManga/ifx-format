@@ -1,8 +1,8 @@
 {
     "name": "ifx-format",
     "displayName": "IFX Format",
-    "description": "Formats Informix SPL procedures without overriding generic SQL formatters (Postgres, etc.)",
-    "version": "0.2.16",
+    "description": "Formats Informix SPL and 4GL without overriding generic SQL formatters (Postgres, etc.)",
+    "version": "0.3.0",
     "publisher": "emanuelmanga",
     "license": "MIT",
     "icon": "public/assets/icon/informix_icon_big@2x.png",
@@ -19,18 +19,21 @@
     },
     "categories": [
         "Formatters",
-        "Programming Languages"
+        "Programming Languages",
+        "Snippets"
     ],
     "keywords": [
         "ifx",
         "informix",
         "spl",
+        "4gl",
         "sql",
         "formatter",
         "stored procedure"
     ],
     "activationEvents": [
-        "onLanguage:informix-spl"
+        "onLanguage:informix-spl",
+        "onLanguage:informix-4gl"
     ],
     "main": "./dist/extension.cjs",
     "contributes": {
@@ -53,6 +56,22 @@
                     "dark": "./public/assets/icon/informix_icon.png"
                 },
                 "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "informix-4gl",
+                "aliases": [
+                    "Informix 4GL",
+                    "IFX 4GL",
+                    "4GL"
+                ],
+                "extensions": [
+                    ".4gl"
+                ],
+                "icon": {
+                    "light": "./public/assets/icon/informix_icon.png",
+                    "dark": "./public/assets/icon/informix_icon.png"
+                },
+                "configuration": "./language-configuration-4gl.json"
             }
         ],
         "grammars": [
@@ -60,10 +79,32 @@
                 "language": "informix-spl",
                 "scopeName": "source.informix-spl",
                 "path": "./syntaxes/informix-spl.tmLanguage.json"
+            },
+            {
+                "language": "informix-4gl",
+                "scopeName": "source.informix-4gl",
+                "path": "./syntaxes/informix-4gl.tmLanguage.json"
+            }
+        ],
+        "snippets": [
+            {
+                "language": "informix-spl",
+                "path": "./snippets/informix-spl.json"
+            },
+            {
+                "language": "informix-4gl",
+                "path": "./snippets/informix-4gl.json"
             }
         ],
         "configurationDefaults": {
             "[informix-spl]": {
+                "editor.defaultFormatter": "emanuelmanga.ifx-format",
+                "editor.formatOnSave": true,
+                "editor.tabSize": 2,
+                "editor.insertSpaces": true,
+                "editor.detectIndentation": false
+            },
+            "[informix-4gl]": {
                 "editor.defaultFormatter": "emanuelmanga.ifx-format",
                 "editor.formatOnSave": true,
                 "editor.tabSize": 2,
@@ -83,19 +124,19 @@
                 "ifxFormat.uppercase": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Convierte keywords Informix/SQL a mayúsculas"
+                    "description": "Convierte keywords Informix/SQL a mayúsculas (SPL)"
                 },
                 "ifxFormat.indentSize": {
                     "type": "number",
                     "default": 2,
                     "minimum": 1,
                     "maximum": 8,
-                    "description": "Espacios por nivel de anidamiento (IF/FOR/FOREACH/WHILE/ON EXCEPTION)"
+                    "description": "Espacios por nivel de anidamiento SPL (IF/FOR/FOREACH/WHILE/ON EXCEPTION)"
                 },
                 "ifxFormat.useTabs": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Usar tabs en lugar de espacios para indentar"
+                    "description": "Usar tabs en lugar de espacios para indentar (SPL)"
                 },
                 "ifxFormat.blankAfterQuery": {
                     "type": "boolean",
@@ -147,35 +188,87 @@
                     "default": true,
                     "description": "Línea en blanco después de CREATE [TEMP] TABLE ...;"
                 },
+                "ifxFormat.4gl.uppercase": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Convierte keywords Informix 4GL a mayúsculas"
+                },
+                "ifxFormat.4gl.indentSize": {
+                    "type": "number",
+                    "default": 2,
+                    "minimum": 1,
+                    "maximum": 8,
+                    "description": "Espacios por nivel de anidamiento 4GL (MAIN/FUNCTION/IF/FOR/…)"
+                },
+                "ifxFormat.4gl.useTabs": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Usar tabs en lugar de espacios para indentar (4GL)"
+                },
+                "ifxFormat.4gl.blankAfterIf": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco después de IF...THEN, ELSE y END IF/FOR/WHILE (4GL)"
+                },
+                "ifxFormat.4gl.blankBeforeElseEndIf": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco antes de ELSE y END IF (4GL)"
+                },
+                "ifxFormat.4gl.blankBeforeBlock": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco antes de MAIN/FUNCTION y END MAIN/END FUNCTION"
+                },
+                "ifxFormat.4gl.blankAfterBlock": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Línea en blanco después de MAIN/FUNCTION y END MAIN/END FUNCTION"
+                },
+                "ifxFormat.4gl.keepEndClosersTogether": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Sin líneas en blanco entre cierres consecutivos 4GL"
+                },
                 "ifxFormat.syntax.highlightVariables": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Colorea parámetros y variables DEFINE en todo el archivo"
+                    "description": "Colorea parámetros y variables DEFINE en todo el archivo (SPL y 4GL)"
                 },
                 "ifxFormat.syntax.parameterColor": {
                     "type": "string",
                     "default": "#FBBF24",
-                    "description": "Color de parámetros del CREATE PROCEDURE (todas las apariciones)"
+                    "description": "Color de parámetros (CREATE PROCEDURE / FUNCTION)"
                 },
                 "ifxFormat.syntax.localColor": {
                     "type": "string",
                     "default": "#2DD4BF",
-                    "description": "Color de variables DEFINE/LET y de ON EXCEPTION SET (todas las apariciones). Distinto al azul de keywords."
+                    "description": "Color de variables DEFINE/LET (todas las apariciones)"
+                },
+                "ifxFormat.syntax.functionColor": {
+                    "type": "string",
+                    "default": "#E5C07B",
+                    "description": "Color de funciones locales 4GL (declaración FUNCTION y CALL)"
+                },
+                "ifxFormat.syntax.builtinColor": {
+                    "type": "string",
+                    "default": "#56B6C2",
+                    "description": "Color de builtins 4GL (num_args, ARG_VAL, length, …)"
                 },
                 "ifxFormat.syntax.highlightControl": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Colorea IF/ELSE/FOR/FOREACH/WHILE/ON EXCEPTION con el mismo color que su END correspondiente"
+                    "description": "Colorea IF/FOR/WHILE/MAIN/FUNCTION/ON EXCEPTION con el mismo color que su END"
                 },
                 "ifxFormat.syntax.controlIfColor": {
                     "type": "string",
                     "default": "#C792EA",
-                    "description": "Color de IF / ELSE / ELSE IF / THEN / END IF"
+                    "description": "Color de IF / ELSE / THEN / END IF (también MAIN en 4GL)"
                 },
                 "ifxFormat.syntax.controlForColor": {
                     "type": "string",
                     "default": "#82AAFF",
-                    "description": "Color de FOR / END FOR"
+                    "description": "Color de FOR / END FOR (también FUNCTION en 4GL)"
                 },
                 "ifxFormat.syntax.controlForeachColor": {
                     "type": "string",

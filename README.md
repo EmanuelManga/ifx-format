@@ -2,7 +2,7 @@
 
 [Español](README.es.md) · [English](README.md)
 
-Formats **Informix SPL** procedures in Cursor and VS Code without overriding generic SQL formatters (Postgres, etc.).
+Formats **Informix SPL** and **Informix 4GL** in Cursor and VS Code without overriding generic SQL formatters (Postgres, etc.).
 
 **ID:** `emanuelmanga.ifx-format`
 
@@ -10,13 +10,28 @@ Formats **Informix SPL** procedures in Cursor and VS Code without overriding gen
 
 ## Features
 
-- Formats `DEFINE`, `LET`, `IF` / `ELSE` / `END IF`, `FOR` / `FOREACH`, queries, and subqueries
-- Uppercase keywords (configurable)
-- Adjustable indentation and blank lines
-- TextMate syntax highlighting for Informix SPL
-- Highlights `CREATE PROCEDURE` parameters and `DEFINE` variables across the file
-- Own language ID (`informix-spl`): does not interfere with Postgres or other `.sql` formatters
-- Custom icon for `.ifs` / `.ifx` / `.spl` files
+### Informix SPL (`.ifs` / `.ifx` / `.spl`)
+
+- Formats `DEFINE`, `LET`, `IF` / `ELSE` / `END IF`, `FOR` / `FOREACH` / `WHILE`, queries and subqueries
+- `ON EXCEPTION` / `END EXCEPTION` / `RAISE EXCEPTION` (indent, blanks, highlight)
+- Blank line after queries, including `FOREACH` cursor `SELECT` (no trailing `;`)
+- Uppercase keywords, adjustable indentation and blank lines
+- TextMate syntax + semantic highlight: procedure params, `DEFINE` / `ON EXCEPTION SET` locals, control blocks matching their `END`
+- Snippets: file header (`header` / `encabezado`), `CREATE PROCEDURE` skeleton (`procedure` / `proc`)
+
+### Informix 4GL (`.4gl`) — separate stack
+
+- Own language ID (`informix-4gl`), grammar, formatter and highlight (does not reuse the SPL formatter)
+- Formats `DATABASE`, `MAIN` / `END MAIN`, `FUNCTION` / `END FUNCTION`, `IF`, `WHENEVER`, `DISPLAY`, `EXECUTE PROCEDURE`, etc.
+- Semantic highlight: `DEFINE` locals, `FUNCTION` params, local function names (declaration + `CALL`), and builtins (`num_args`, `ARG_VAL`, …)
+- Snippets: file header, `MAIN` skeleton, `FUNCTION` skeleton
+- Settings under `ifxFormat.4gl.*` (independent from SPL)
+
+### Shared
+
+- Does not interfere with Postgres / other `.sql` formatters
+- Custom icon for Informix file extensions
+- Format on save enabled by default for both languages
 
 ## Preview
 
@@ -42,7 +57,8 @@ Procedure parameters and `DEFINE` variables with distinct colors:
 
 | Extension              | Language ID    | Formatter             |
 | ---------------------- | -------------- | --------------------- |
-| `.ifs`, `.ifx`, `.spl` | `informix-spl` | IFX Format            |
+| `.ifs`, `.ifx`, `.spl` | `informix-spl` | IFX Format (SPL)      |
+| `.4gl`                 | `informix-4gl` | IFX Format (4GL)      |
 | `.sql`                 | `sql`          | Your usual formatters |
 
 For Informix-only projects, associate `.sql` in the workspace:
@@ -57,13 +73,22 @@ For Informix-only projects, associate `.sql` in the workspace:
 
 ## Usage
 
-1. Open a `.ifs`, `.ifx`, or `.spl` file
+1. Open a `.ifs`, `.ifx`, `.spl`, or `.4gl` file
 2. **Format Document** (`Shift+Alt+F`) or enable format on save
 3. Or run **IFX Format: Format Document**
 
-On install, `informix-spl` already uses IFX Format as the default formatter with format on save enabled.
+### Snippets
 
-## Example
+In an Informix file, type the prefix and accept the suggestion (`Enter` / `Tab`):
+
+| Language | Prefix                         | Inserts                                      |
+| -------- | ------------------------------ | -------------------------------------------- |
+| SPL/4GL  | `header` / `encabezado`        | Module header (description, version, …)      |
+| SPL      | `procedure` / `proc`           | `DROP` + `CREATE PROCEDURE` skeleton         |
+| 4GL      | `main` / `main4gl`             | `DATABASE` + `MAIN` / `END MAIN`             |
+| 4GL      | `function` / `func`            | `FUNCTION` / `END FUNCTION` skeleton         |
+
+## Example (SPL)
 
 **Before**
 
@@ -101,34 +126,52 @@ END PROCEDURE;
 
 ## Settings
 
-### Formatting
+### SPL formatting (`ifxFormat.*`)
 
-| Setting                            | Default | Description                               |
-| ---------------------------------- | ------- | ----------------------------------------- |
-| `ifxFormat.uppercase`              | `true`  | Uppercase keywords                        |
-| `ifxFormat.indentSize`             | `2`     | Spaces per indent level                   |
-| `ifxFormat.useTabs`                | `false` | Use tabs instead of spaces                |
-| `ifxFormat.blankAfterQuery`        | `true`  | Blank line after queries                  |
-| `ifxFormat.blankAfterIf`           | `true`  | Blank line after `IF` / `ELSE` / `END IF` / `END FOR` / `END FOREACH` / `END WHILE` |
-| `ifxFormat.blankAfterReturning`    | `true`  | Blank line after `RETURNING`              |
-| `ifxFormat.blankBeforeElseEndIf`   | `true`  | Blank line before `ELSE` / `END IF`       |
-| `ifxFormat.keepEndClosersTogether` | `true`  | No blank lines between stacked closers    |
-| `ifxFormat.spaceBeforeCreateTableParen` | `true` | Space before `(` in `CREATE [TEMP] TABLE name (` |
-| `ifxFormat.blankAroundDropTable`   | `true`  | Group consecutive `DROP TABLE`; blank line above/below |
-| `ifxFormat.blankAfterCreateTable`  | `true`  | Blank line after `CREATE [TEMP] TABLE ...;` |
+| Setting                                 | Default | Description |
+| --------------------------------------- | ------- | ----------- |
+| `ifxFormat.uppercase`                   | `true`  | Uppercase keywords |
+| `ifxFormat.indentSize`                  | `2`     | Spaces per indent level |
+| `ifxFormat.useTabs`                     | `false` | Use tabs instead of spaces |
+| `ifxFormat.blankAfterQuery`             | `true`  | Blank line after queries (also after `FOREACH` cursor `SELECT`) |
+| `ifxFormat.blankAfterIf`                | `true`  | Blank after `IF` / `ELSE` / `END IF` / `END FOR` / `END FOREACH` / `END WHILE` |
+| `ifxFormat.blankAfterReturning`         | `true`  | Blank line after `RETURNING` |
+| `ifxFormat.blankBeforeElseEndIf`        | `true`  | Blank line before `ELSE` / `END IF` |
+| `ifxFormat.blankBeforeException`        | `true`  | Blank line before `ON EXCEPTION` / `END EXCEPTION` |
+| `ifxFormat.blankAfterException`         | `true`  | Blank line after `ON EXCEPTION` / `END EXCEPTION` |
+| `ifxFormat.keepEndClosersTogether`      | `true`  | No blank lines between stacked closers |
+| `ifxFormat.spaceBeforeCreateTableParen` | `true`  | Space before `(` in `CREATE [TEMP] TABLE name (` |
+| `ifxFormat.blankAroundDropTable`        | `true`  | Group consecutive `DROP TABLE`; blank above/below |
+| `ifxFormat.blankAfterCreateTable`       | `true`  | Blank line after `CREATE [TEMP] TABLE ...;` |
 
-### Variable highlighting
+### 4GL formatting (`ifxFormat.4gl.*`)
 
-| Setting                                | Default   | Description                                     |
-| -------------------------------------- | --------- | ----------------------------------------------- |
-| `ifxFormat.syntax.highlightVariables`  | `true`    | Color parameters and variables                  |
-| `ifxFormat.syntax.parameterColor`      | `#FBBF24` | Parameter color                                 |
-| `ifxFormat.syntax.localColor`          | `#2DD4BF` | Local variable color                            |
-| `ifxFormat.syntax.highlightControl`    | `true`    | IF/ELSE/FOR/FOREACH/WHILE match their END color |
-| `ifxFormat.syntax.controlIfColor`      | `#C792EA` | IF / ELSE / END IF color                        |
-| `ifxFormat.syntax.controlForColor`     | `#82AAFF` | FOR / END FOR color                             |
-| `ifxFormat.syntax.controlForeachColor` | `#82AAFF` | FOREACH / END FOREACH color                     |
-| `ifxFormat.syntax.controlWhileColor`   | `#82AAFF` | WHILE / END WHILE color                         |
+| Setting                              | Default | Description |
+| ------------------------------------ | ------- | ----------- |
+| `ifxFormat.4gl.uppercase`            | `true`  | Uppercase 4GL keywords |
+| `ifxFormat.4gl.indentSize`           | `2`     | Spaces per indent (`MAIN` / `FUNCTION` / `IF` / …) |
+| `ifxFormat.4gl.useTabs`              | `false` | Use tabs instead of spaces |
+| `ifxFormat.4gl.blankAfterIf`         | `true`  | Blank after `IF` / `ELSE` / `END IF` / loops |
+| `ifxFormat.4gl.blankBeforeElseEndIf` | `true`  | Blank before `ELSE` / `END IF` |
+| `ifxFormat.4gl.blankBeforeBlock`     | `true`  | Blank before `MAIN` / `FUNCTION` and their `END` |
+| `ifxFormat.4gl.blankAfterBlock`      | `true`  | Blank after `MAIN` / `FUNCTION` and their `END` |
+| `ifxFormat.4gl.keepEndClosersTogether` | `true` | No blank lines between stacked closers |
+
+### Syntax highlighting (SPL + 4GL)
+
+| Setting                                | Default   | Description |
+| -------------------------------------- | --------- | ----------- |
+| `ifxFormat.syntax.highlightVariables`  | `true`    | Color parameters, locals, 4GL functions/builtins |
+| `ifxFormat.syntax.parameterColor`      | `#FBBF24` | Parameter color |
+| `ifxFormat.syntax.localColor`          | `#2DD4BF` | Local / `DEFINE` / `ON EXCEPTION SET` color |
+| `ifxFormat.syntax.functionColor`       | `#E5C07B` | Local 4GL function names (declaration + `CALL`) |
+| `ifxFormat.syntax.builtinColor`        | `#56B6C2` | 4GL builtins (`num_args`, `ARG_VAL`, …) |
+| `ifxFormat.syntax.highlightControl`    | `true`    | Control keywords match their `END` color |
+| `ifxFormat.syntax.controlIfColor`      | `#C792EA` | `IF` / `ELSE` / `END IF` (also `MAIN` in 4GL) |
+| `ifxFormat.syntax.controlForColor`     | `#82AAFF` | `FOR` / `END FOR` (also `FUNCTION` keyword in 4GL) |
+| `ifxFormat.syntax.controlForeachColor` | `#82AAFF` | `FOREACH` / `END FOREACH` |
+| `ifxFormat.syntax.controlWhileColor`   | `#82AAFF` | `WHILE` / `END WHILE` |
+| `ifxFormat.syntax.controlExceptionColor` | `#FF5370` | `ON EXCEPTION` / `END EXCEPTION` |
 
 ## Requirements
 

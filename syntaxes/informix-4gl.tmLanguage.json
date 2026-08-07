@@ -1,0 +1,105 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Informix 4GL",
+  "scopeName": "source.informix-4gl",
+  "patterns": [
+    { "include": "#informix-comments" },
+    { "include": "#informix-function-name" },
+    { "include": "#informix-define" },
+    { "include": "#informix-let" },
+    { "include": "#informix-into" },
+    { "include": "#informix-keywords" },
+    { "include": "#informix-qualified" },
+    { "include": "source.sql" }
+  ],
+  "repository": {
+    "informix-comments": {
+      "patterns": [
+        {
+          "name": "comment.block.sql",
+          "begin": "\\{",
+          "end": "\\}"
+        }
+      ]
+    },
+    "informix-function-name": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(FUNCTION)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.control.informix-4gl" },
+            "2": { "name": "entity.name.function.informix-4gl" }
+          }
+        },
+        {
+          "match": "(?i)\\b(MAIN)\\b",
+          "name": "keyword.control.informix-4gl"
+        }
+      ]
+    },
+    "informix-define": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(DEFINE)\\s+(GLOBAL)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "keyword.other.sql" },
+            "3": { "name": "variable.other.informix-4gl" }
+          }
+        },
+        {
+          "match": "(?i)\\b(DEFINE)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "variable.other.informix-4gl" }
+          }
+        }
+      ]
+    },
+    "informix-let": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(LET)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.sql" },
+            "2": { "name": "variable.other.informix-4gl" }
+          }
+        }
+      ]
+    },
+    "informix-into": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(INTO)\\s+([A-Za-z_][\\w@$#]*)",
+          "captures": {
+            "1": { "name": "keyword.other.DML.sql" },
+            "2": { "name": "variable.other.informix-4gl" }
+          }
+        }
+      ]
+    },
+    "informix-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.informix-4gl",
+          "match": "(?i)\\b(END\\s+(FOREACH|WHILE|FUNCTION|MAIN|FOR|IF)|ELSE\\s+IF|ELIF|FOREACH|WHILE|ELSE|THEN|FOR|IF|DO|WHENEVER)\\b"
+        },
+        {
+          "name": "keyword.other.sql",
+          "match": "(?i)\\b(DATABASE|DEFINE|GLOBAL|LET|CALL|DISPLAY|RUN|EXIT\\s+PROGRAM|EXECUTE\\s+PROCEDURE|EXECUTE|PROCEDURE|RETURNING|CONTINUE|EXIT|STEP|TODAY|CURRENT|NVL|DECODE|LVARCHAR|SMALLFLOAT|BYTE|TEMP|TEMPORARY|SCRATCH|LOG|BEGIN\\s+WORK|COMMIT\\s+WORK|ROLLBACK\\s+WORK|SET\\s+LOCK\\s+MODE|LOCK|MODE|WAIT|ERROR|CONTINUE|STOP|CALL|STATUS|SQLCA|ARG_VAL)\\b"
+        }
+      ]
+    },
+    "informix-qualified": {
+      "patterns": [
+        {
+          "match": "\\b([A-Za-z_][\\w@$#]*)\\.([A-Za-z_][\\w@$#]*)\\b",
+          "captures": {
+            "1": { "name": "constant.other.database-name.sql" },
+            "2": { "name": "constant.other.table-name.sql" }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,10 +1,15 @@
 import * as vscode from "vscode";
 import { formatInformixSpl, type FormatOptions } from "./formatter";
+import {
+  formatInformix4gl,
+  type Format4glOptions,
+} from "./formatter-4gl";
 import { readHighlightColors, VariableHighlighter } from "./highlight";
 
-const LANGUAGE_ID = "informix-spl";
+const LANG_SPL = "informix-spl";
+const LANG_4GL = "informix-4gl";
 
-function readOptions(): FormatOptions {
+function readSplOptions(): FormatOptions {
   const config = vscode.workspace.getConfiguration("ifxFormat");
   return {
     uppercase: config.get("uppercase", true),
@@ -23,20 +28,40 @@ function readOptions(): FormatOptions {
   };
 }
 
-function formatDocument(document: vscode.TextDocument): vscode.TextEdit[] {
+function read4glOptions(): Format4glOptions {
+  const config = vscode.workspace.getConfiguration("ifxFormat.4gl");
+  return {
+    uppercase: config.get("uppercase", true),
+    indentSize: config.get("indentSize", 2),
+    useTabs: config.get("useTabs", false),
+    blankAfterIf: config.get("blankAfterIf", true),
+    blankBeforeElseEndIf: config.get("blankBeforeElseEndIf", true),
+    blankBeforeBlock: config.get("blankBeforeBlock", true),
+    blankAfterBlock: config.get("blankAfterBlock", true),
+    keepEndClosersTogether: config.get("keepEndClosersTogether", true),
+  };
+}
+
+function formatEdits(
+  document: vscode.TextDocument,
+  formatted: string,
+): vscode.TextEdit[] {
   const text = document.getText();
-  const formatted = formatInformixSpl(text, readOptions());
-
-  if (formatted === text) {
-    return [];
-  }
-
+  if (formatted === text) return [];
   const fullRange = new vscode.Range(
     document.positionAt(0),
     document.positionAt(text.length),
   );
-
   return [vscode.TextEdit.replace(fullRange, formatted)];
+}
+
+function languageForEditor(doc: vscode.TextDocument): string {
+  if (doc.languageId === LANG_SPL || doc.languageId === LANG_4GL) {
+    return doc.languageId;
+  }
+  const name = doc.fileName.toLowerCase();
+  if (name.endsWith(".4gl")) return LANG_4GL;
+  return LANG_SPL;
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -44,37 +69,58 @@ export function activate(context: vscode.ExtensionContext): void {
   highlighter.recreateDecorations(readHighlightColors());
   highlighter.paintVisible();
 
-  const provider: vscode.DocumentFormattingEditProvider = {
+  const splProvider: vscode.DocumentFormattingEditProvider = {
     provideDocumentFormattingEdits(document) {
-      return formatDocument(document);
+      return formatEdits(
+        document,
+        formatInformixSpl(document.getText(), readSplOptions()),
+      );
     },
   };
 
-  const selector: vscode.DocumentSelector = [
-    { language: LANGUAGE_ID, scheme: "file" },
-    { language: LANGUAGE_ID, scheme: "untitled" },
+  const fglProvider: vscode.DocumentFormattingEditProvider = {
+    provideDocumentFormattingEdits(document) {
+      return formatEdits(
+        document,
+        formatInformix4gl(document.getText(), read4glOptions()),
+      );
+    },
+  };
+
+  const splSelector: vscode.DocumentSelector = [
+    { language: LANG_SPL, scheme: "file" },
+    { language: LANG_SPL, scheme: "untitled" },
+  ];
+  const fglSelector: vscode.DocumentSelector = [
+    { language: LANG_4GL, scheme: "file" },
+    { language: LANG_4GL, scheme: "untitled" },
   ];
 
   context.subscriptions.push(
     highlighter,
-    vscode.languages.registerDocumentFormattingEditProvider(selector, provider),
+    vscode.languages.registerDocumentFormattingEditProvider(
+      splSelector,
+      splProvider,
+    ),
+    vscode.languages.registerDocumentFormattingEditProvider(
+      fglSelector,
+      fglProvider,
+    ),
     vscode.commands.registerCommand("ifxFormat.format", async () => {
       const editor = vscode.window.activeTextEditor;
-      if (!editor) {
-        return;
-      }
+      if (!editor) return;
 
-      if (editor.document.languageId !== LANGUAGE_ID) {
-        await vscode.languages.setTextDocumentLanguage(
-          editor.document,
-          LANGUAGE_ID,
-        );
+      const lang = languageForEditor(editor.document);
+      if (editor.document.languageId !== lang) {
+        await vscode.languages.setTextDocumentLanguage(editor.document, lang);
       }
 
       await vscode.commands.executeCommand("editor.action.formatDocument");
     }),
     vscode.workspace.onDidChangeTextDocument((e) => {
-      if (e.document.languageId !== LANGUAGE_ID) return;
+      if (e.document.languageId !== LANG_SPL && e.document.languageId !== LANG_4GL) {
+        return;
+      }
       const editor = vscode.window.visibleTextEditors.find(
         (ed) => ed.document === e.document,
       );
@@ -87,7 +133,7 @@ export function activate(context: vscode.ExtensionContext): void {
       highlighter.paintVisible();
     }),
     vscode.workspace.onDidOpenTextDocument((doc) => {
-      if (doc.languageId !== LANGUAGE_ID) return;
+      if (doc.languageId !== LANG_SPL && doc.languageId !== LANG_4GL) return;
       highlighter.paintVisible();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {

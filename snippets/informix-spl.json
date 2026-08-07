@@ -1,0 +1,33 @@
+{
+  "File header": {
+    "prefix": ["header", "encabezado"],
+    "body": [
+      "{",
+      "******************************************************************************",
+      "* Module......: ${1:$TM_FILENAME}",
+      "* Description.: ${2}",
+      "* Version.....: ${3:1.0.0}",
+      "* Author......: ${4}",
+      "* Date........: ${5:$CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE}",
+      "* History.....:",
+      "*   ${5}  ${4}  creación",
+      "******************************************************************************",
+      "}",
+      ""
+    ],
+    "description": "Encabezado de módulo Informix SPL"
+  },
+  "CREATE PROCEDURE skeleton": {
+    "prefix": ["procedure", "proc"],
+    "body": [
+      "DROP PROCEDURE IF EXISTS ${1:sp_nombre};",
+      "CREATE PROCEDURE ${1:sp_nombre}(${2})",
+      "  RETURNING ${3:INTEGER AS resultado};",
+      "",
+      "  ${4}",
+      "END PROCEDURE",
+      ""
+    ],
+    "description": "Esqueleto DROP + CREATE PROCEDURE / END PROCEDURE"
+  }
+}
